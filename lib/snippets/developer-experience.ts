@@ -1,37 +1,26 @@
 // Developer Experience feature page content (aspirational)
 
-export const heroCode = `import { google } from "@upspawn/ads";
-import { daily, usd, exact, phrase, headlines, descriptions, rsa, url } from "@upspawn/ads/helpers";
+export const heroCode = `import { google, daily, exact, phrase,
+  headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-export const brandSearch = google.search({
-  name: "Arcflow — Brand Search",
-  //     ^ string
-  budget: daily(usd(40)),
+google.search('Brand - Arcflow', {
+  budget: daily(40),
   //           ^ number (dollars, not micros)
-  bidding: "maximize-clicks",
+  bidding: 'maximize-clicks',
   //        ^ "maximize-clicks" | "maximize-conversions" | "target-cpa"
 })
-  .group("Core Keywords", (g) =>
-    g
-      .keywords([
-        exact("arcflow"),        // [arcflow]
-        phrase("arcflow app"),   // "arcflow app"
-        //  ^ Keyword — branded string, validates match type at construction
-      ])
-      .ad(rsa(
-        headlines([
-          "Arcflow — AI Workflow Automation",
-          //  ^ Headline — max 30 chars, enforced at build time
-          "Automate Your Workflows Today",
-          "Connect Every Tool You Use",
-        ]),
-        descriptions([
-          "Build automations in minutes. No code required.",
-          //  ^ Description — max 90 chars, enforced at build time
-        ]),
-        url("https://arcflow.io"),
-      ))
-  );`;
+  .group('Core Keywords', {
+    keywords: [
+      ...exact('arcflow'),       // [arcflow]
+      ...phrase('arcflow app'),  // "arcflow app"
+    ],
+    ad: rsa(
+      headlines('Arcflow — AI Workflow Automation', 'Automate Your Workflows'),
+      //  ^ Headline — max 30 chars, enforced at build time
+      descriptions('Build automations in minutes. No code required.'),
+      url('https://arcflow.dev'),
+    ),
+  })`;
 
 export const problemLines = [
   "Ad platforms have GUIs. GUIs can't be linted, reviewed, or committed to git.",
@@ -47,43 +36,32 @@ export const howSteps = [
       "Every property, every option, every helper is fully typed. Your editor knows what `bidding` accepts, how many headlines an RSA allows, and what the valid match types are — before you run a single command.",
     code: `// TypeScript catches this before it reaches the API:
 
-const campaign = google.search({
-  name: "Arcflow Brand",
-  bidding: "maximize-revenue",
-  //        ^^^^^^^^^^^^^^^^^ Error: Type '"maximize-revenue"' is not assignable
-  //        to type '"maximize-clicks" | "maximize-conversions" | "target-cpa"'
-  budget: daily(usd(40)),
-});
+google.search('Arcflow Brand', {
+  bidding: 'maximize-revenue',
+  //        ^^^^^^^^^^^^^^^^^ Error: not assignable to
+  //        '"maximize-clicks" | "maximize-conversions" | "target-cpa"'
+})
 
-// And this:
-headlines([
-  "This headline is way too long to fit in a Google ad",
-  //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  // Error: Headline exceeds 30 characters
-])`,
+headlines('This headline is way too long to fit in a Google ad')
+//         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//         Error: Headline exceeds 30 characters`,
     lang: "typescript" as const,
   },
   {
     title: "Branded types catch errors at compile time",
     caption:
       "Headlines, descriptions, and keywords are branded string types. You can't accidentally pass a description where a headline is expected. Constraints are enforced at construction — not at API call time.",
-    code: `// Branded types prevent entire classes of mistakes:
+    code: `// Can't mix up Headline and Description:
+const ad = rsa(
+  headlines(['Short headline']),
+  descriptions(['My description text']),
+  url('https://arcflow.dev'),
+)
 
-type Headline = string & { readonly __brand: "Headline" };
-type Description = string & { readonly __brand: "Description" };
-
-// This fails at compile time, not at runtime:
-const myAd = rsa(
-  headlines(["Short headline"]),
-  descriptions(["My description text"]),
-  url("https://arcflow.io"),
-);
-
-// Can't mix them up:
 rsa(
-  headlines([myAd.descriptions[0]]),
-  //          ^^^^^^^^^^^^^^^^^^^^ Error: Argument of type 'Description'
-  //          is not assignable to parameter of type 'Headline'
+  headlines([ad.descriptions[0]]),
+  //         ^^^^^^^^^^^^^^^^^^^ Error: Argument of type 'Description'
+  //         is not assignable to parameter of type 'Headline'
 )`,
     lang: "typescript" as const,
   },
@@ -91,31 +69,20 @@ rsa(
     title: "AI tools work natively — no plugin needed",
     caption:
       "Because campaigns are TypeScript, any AI coding assistant can read, write, and reason about them. Ask your assistant to generate a campaign, add keywords, or rewrite headlines — it already knows the types.",
-    code: `// Prompt to your AI assistant:
-// "Add a new ad group targeting competitor keywords for Notion and Linear"
+    code: `// Ask your AI: "Add a competitor ad group targeting Notion and Linear"
 
-// AI generates valid TypeScript using the typed SDK:
-.group("Competitor Keywords", (g) =>
-  g
-    .keywords([
-      phrase("notion alternative"),
-      phrase("linear alternative"),
-      exact("arcflow vs notion"),
-      exact("arcflow vs linear"),
-    ])
-    .ad(rsa(
-      headlines([
-        "Better Than Notion for Teams",
-        "The Linear Alternative That Ships",
-        "Arcflow — Built for Developers",
-      ]),
-      descriptions([
-        "Automate workflows Notion can't touch. Try free.",
-        "Sync Linear, Slack, and GitHub automatically.",
-      ]),
-      url("https://arcflow.io/compare"),
-    ))
-)`,
+.group('Competitor Keywords', {
+  keywords: [
+    ...phrase('notion alternative'),
+    ...phrase('linear alternative'),
+    ...exact('arcflow vs notion'),
+  ],
+  ad: rsa(
+    headlines('Better Than Notion for Teams', 'The Automation Tool Notion Lacks'),
+    descriptions('Automate workflows Notion can\'t touch. Try free.'),
+    url('https://arcflow.dev/compare'),
+  ),
+})`,
     lang: "typescript" as const,
   },
 ];
