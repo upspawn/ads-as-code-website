@@ -19,11 +19,17 @@ function parseDiffLines(raw: string): DiffLine[] {
 }
 
 const colorMap = {
-  add: "text-diff-add",
-  change: "text-diff-change",
-  remove: "text-diff-remove",
-  muted: "text-text-muted",
-  plain: "text-text",
+  add: "text-[#A8DB8F]",
+  change: "text-[#E5C07B]",
+  remove: "text-[#E06C75]",
+  muted: "text-[#6B6560]",
+  plain: "text-[#D4CECB]",
+};
+
+const bgMap: Record<string, string> = {
+  add: "bg-[#A8DB8F]/8",
+  change: "bg-[#E5C07B]/8",
+  remove: "bg-[#E06C75]/8",
 };
 
 export function DiffOutput({ content }: { content: string }) {
@@ -54,30 +60,32 @@ export function DiffOutput({ content }: { content: string }) {
   return (
     <div
       ref={ref}
-      className="rounded-2xl border border-code-border bg-code-bg shadow-sm overflow-hidden"
+      className="rounded-2xl overflow-hidden shadow-lg"
     >
       {/* Title bar */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-code-border bg-[#EFEEE8]">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-[#1E1B18]">
         <div className="flex gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#E5E4DE]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-[#E5E4DE]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-[#E5E4DE]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#3A3632]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#3A3632]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#3A3632]" />
         </div>
-        <span className="text-xs text-text-muted font-mono">Terminal</span>
+        <span className="text-xs text-[#6B6560] font-mono">Terminal</span>
       </div>
 
       {/* Diff body */}
-      <pre className="font-mono text-sm md:text-base leading-relaxed p-5 md:p-6 overflow-x-auto">
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            className={`${colorMap[line.type]} transition-opacity duration-300`}
-            style={{ opacity: i < visibleCount ? 1 : 0 }}
-          >
-            {line.text || "\u00A0"}
-          </div>
-        ))}
-      </pre>
+      <div className="bg-[#101010] px-5 py-5 overflow-x-auto">
+        <pre className="font-mono text-[13px] leading-[1.75]">
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              className={`${colorMap[line.type]} ${bgMap[line.type] || ""} transition-opacity duration-300 px-1 -mx-1 rounded-sm`}
+              style={{ opacity: i < visibleCount ? 1 : 0 }}
+            >
+              {line.text || "\u00A0"}
+            </div>
+          ))}
+        </pre>
+      </div>
     </div>
   );
 }

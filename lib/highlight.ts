@@ -5,8 +5,8 @@ let highlighter: Highlighter | null = null;
 async function getHighlighter() {
   if (!highlighter) {
     highlighter = await createHighlighter({
-      themes: ["github-light"],
-      langs: ["typescript", "shellscript"],
+      themes: ["vesper"],
+      langs: ["typescript", "shellscript", "yaml"],
     });
   }
   return highlighter;
@@ -19,6 +19,6 @@ export async function highlight(
   const hl = await getHighlighter();
   return hl.codeToHtml(code, {
     lang,
-    theme: "github-light",
+    theme: "vesper",
   });
 }
