@@ -2,7 +2,7 @@
 
 export const heroCode = `$ ads import
 
-  Connecting to Google Ads (customer: 7300967494)...
+  Connecting to Google Ads (customer: 1112223333)...
 
   ✓  campaign/brand-search                  imported
   ✓  campaign/brand-search/core-keywords    imported

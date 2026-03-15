@@ -1,0 +1,167 @@
+---
+title: Getting Started
+description: Install ads-as-code, authenticate with your ad platform, write your first campaign, and apply it.
+---
+
+This guide walks you through a complete setup in about 5 minutes.
+
+## Prerequisites
+
+- [Bun](https://bun.sh) installed
+- A Google Ads or Meta Ads account
+- API credentials for your platform (see [Google Ads Setup](/docs/guides/google-ads-setup) or [Meta Ads Setup](/docs/guides/meta-ads-setup))
+
+## 1. Install
+
+```bash
+bun add -g @upspawn/ads
+```
+
+Verify the install:
+
+```bash
+ads --version
+```
+
+## 2. Initialize a project
+
+```bash
+mkdir my-ads && cd my-ads
+ads init
+```
+
+This creates:
+
+```
+my-ads/
+├── ads.config.ts       # Project config (customer ID, account ID)
+└── campaigns/          # Your campaign definitions live here
+```
+
+## 3. Configure credentials
+
+For Google Ads, create `~/.ads/credentials.json`:
+
+```json title="~/.ads/credentials.json"
+{
+  "google_client_id": "YOUR_CLIENT_ID",
+  "google_client_secret": "YOUR_CLIENT_SECRET",
+  "google_refresh_token": "YOUR_REFRESH_TOKEN",
+  "google_developer_token": "YOUR_DEVELOPER_TOKEN",
+  "google_customer_id": "1234567890",
+  "google_manager_id": "0987654321"
+}
+```
+
+Then set your customer ID in `ads.config.ts`:
+
+```ts title="ads.config.ts"
+import { defineConfig } from '@upspawn/ads'
+
+export default defineConfig({
+  google: {
+    customerId: '1234567890',
+    managerId: '0987654321',
+  },
+})
+```
+
+See [Google Ads Setup](/docs/guides/google-ads-setup) for step-by-step instructions on getting these credentials. For Meta Ads, see [Meta Ads Setup](/docs/guides/meta-ads-setup).
+
+## 4. Authenticate
+
+```bash
+ads auth google
+```
+
+This verifies your credentials and reports the connected account.
+
+## 5. Write your first campaign
+
+Create `campaigns/brand.ts`:
+
+```ts title="campaigns/brand.ts"
+import {
+  google,
+  daily,
+  exact,
+  phrase,
+  headlines,
+  descriptions,
+  rsa,
+  url,
+  link,
+  sitelinks,
+  callouts,
+} from '@upspawn/ads'
+
+export default google.search('Brand', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .group('brand-en', {
+    keywords: [
+      ...exact('my product', 'my product app'),
+      ...phrase('my product for teams'),
+    ],
+    ad: rsa(
+      headlines(
+        'My Product — Official',
+        'Start Free Today',
+        'No Credit Card Required',
+        'Used by 10,000 Teams',
+      ),
+      descriptions(
+        'The fastest way to get X done. Set up in minutes.',
+        'Free plan available. Connect your tools and get started.',
+      ),
+      url('https://example.com'),
+    ),
+  })
+  .sitelinks(
+    link('Pricing', 'https://example.com/pricing', {
+      description1: 'Free plan available',
+      description2: 'No credit card required',
+    }),
+    link('Features', 'https://example.com/features'),
+  )
+  .callouts('Free Plan', 'No Setup Fees', 'Cancel Anytime')
+```
+
+## 6. Preview changes
+
+```bash
+ads plan
+```
+
+This fetches live state from Google Ads, diffs it against your TypeScript definitions, and shows what will be created, updated, or deleted. No changes are made.
+
+```
++ campaign   Brand
++ adGroup    Brand / brand-en
++ keyword    Brand / brand-en / kw:my-product:EXACT
++ keyword    Brand / brand-en / kw:my-product-app:EXACT
++ keyword    Brand / brand-en / kw:my-product-for-teams:PHRASE
++ ad         Brand / brand-en / rsa:a3f2b1...
+```
+
+## 7. Apply changes
+
+```bash
+ads apply
+```
+
+Creates or updates resources in the correct dependency order: campaign → ad group → keywords → ad → extensions.
+
+To do a dry run without making any changes:
+
+```bash
+ads apply --dry-run
+```
+
+## Next steps
+
+- [Writing Campaigns](/docs/guides/writing-campaigns) — full guide to the campaign DSL
+- [Google Ads Setup](/docs/guides/google-ads-setup) — detailed credential setup
+- [CLI Reference](/docs/reference/cli) — all commands and flags
+- [Import existing campaigns](/docs/reference/cli#import) — pull live campaigns into TypeScript

@@ -1,29 +1,46 @@
 ---
-title: Documentation
-description: Learn how to use ads-as-code
+title: ads-as-code
+description: Manage ad campaigns as TypeScript code. Diff against live platform state and apply changes.
 ---
 
-Welcome to the **ads-as-code** documentation.
+`@upspawn/ads` is a Pulumi-style SDK and CLI for managing ad campaigns as code. You define campaigns in TypeScript, the tool diffs your definitions against live platform state, and applies only what changed.
 
-ads-as-code is a Pulumi-style SDK and CLI for managing ad campaigns as code. Define campaigns in TypeScript, diff against live platform state, and apply changes.
+```ts title="campaigns/brand.ts"
+import { google, daily, exact, headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-## Quick Start
-
-```bash
-# Install
-npm install -g @upspawn/ads
-
-# Initialize a project
-ads init
-
-# Preview changes
-ads plan
-
-# Apply changes
-ads apply
+export default google.search('Brand Campaign', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .group('brand-exact', {
+    keywords: [...exact('my product', 'my product pricing')],
+    ad: rsa(
+      headlines('My Product', 'Official Site', 'Start Free Today'),
+      descriptions('The fastest way to get things done. No credit card required.'),
+      url('https://example.com'),
+    ),
+  })
 ```
 
-## Supported Platforms
+```bash
+ads plan    # Preview changes
+ads apply   # Apply to Google Ads / Meta
+```
 
-- **Google Ads** — Search campaigns, ad groups, keywords, RSAs, extensions
-- **Meta Ads** — Traffic, conversions, leads, catalog sales campaigns
+## What it does
+
+- **Declarative campaigns** — define campaigns as plain TypeScript objects
+- **Diff engine** — compares your definitions against live platform state, shows exactly what will change
+- **Dependency-ordered mutations** — creates parent resources before children, deletes children before parents
+- **Stable resource identity** — paths like `brand-campaign/brand-exact/kw:my-product:EXACT` map to platform IDs via SQLite cache
+- **Import** — pull existing campaigns from the platform and generate TypeScript definitions
+- **AI generation** — embed AI markers in your definitions; the tool generates copy with LLMs
+
+## Supported platforms
+
+- **Google Ads** — Search campaigns, ad groups, keywords, RSAs, extensions, negatives
+- **Meta Ads** — Traffic, conversions, leads, catalog sales campaigns; image, video, and carousel ads
+
+## Get started
+
+See the [Quick Start guide](/docs/getting-started) to install, authenticate, write your first campaign, and apply it in under 5 minutes.

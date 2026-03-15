@@ -1,0 +1,329 @@
+---
+title: API Reference
+description: SDK exports, builder methods, and helper functions.
+---
+
+All public exports are available from `@upspawn/ads`.
+
+---
+
+## Google
+
+### `google.search(name, config)`
+
+Creates a Google Search campaign builder.
+
+```ts
+import { google } from '@upspawn/ads'
+
+const campaign = google.search('Campaign Name', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  negatives: [...broad('free', 'tutorial')],
+  targeting: targeting(geo('US'), languages('en')),
+})
+```
+
+**Config:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `budget` | `Budget` | Daily, monthly, or lifetime budget |
+| `bidding` | `BiddingStrategy` | Bidding strategy (see below) |
+| `negatives` | `NegativeKeyword[]` | Campaign-level negative keywords |
+| `targeting` | `Targeting` | Geo, language, schedule targeting |
+| `status` | `'ENABLED' \| 'PAUSED'` | Campaign status (default: `ENABLED`) |
+
+**Bidding strategies:**
+
+```ts
+'maximize-clicks'                              // Maximize clicks (TARGET_SPEND)
+'maximize-conversions'                         // Maximize conversions
+{ type: 'target-cpa', targetCpa: 15 }         // Target CPA
+{ type: 'target-roas', targetRoas: 3.0 }      // Target ROAS
+{ type: 'manual-cpc' }                        // Manual CPC
+```
+
+### `.group(name, config)`
+
+Adds an ad group to the campaign. Chainable.
+
+```ts
+campaign.group('ad-group-name', {
+  keywords: [...exact('keyword')],
+  ad: rsa(/* ... */),
+  status: 'ENABLED',
+})
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `keywords` | `Keyword[]` | Keywords for this ad group |
+| `ad` | `RsaAd` | The responsive search ad |
+| `status` | `'ENABLED' \| 'PAUSED'` | Ad group status |
+
+### `.sitelinks(...links)`
+
+Adds sitelink extensions. Chainable.
+
+```ts
+campaign.sitelinks(
+  link('Pricing', 'https://example.com/pricing', {
+    description1: 'Free plan available',
+    description2: 'No credit card required',
+  }),
+  link('Features', 'https://example.com/features'),
+)
+```
+
+### `.callouts(...texts)`
+
+Adds callout extensions. Max 25 chars each.
+
+```ts
+campaign.callouts('No Credit Card', 'Free Plan', 'Cancel Anytime')
+```
+
+---
+
+## Meta
+
+### `meta.traffic(name, config)`
+### `meta.conversions(name, config)`
+### `meta.leads(name, config)`
+### `meta.awareness(name, config)`
+
+Creates a Meta campaign builder for the given objective.
+
+```ts
+import { meta } from '@upspawn/ads'
+
+const campaign = meta.traffic('Campaign Name', {
+  budget: daily(30),
+  bidding: lowestCost(),
+  status: 'ACTIVE',
+})
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `budget` | `Budget` | Daily, monthly, or lifetime budget |
+| `bidding` | `MetaBiddingStrategy` | Bidding strategy |
+| `status` | `'ACTIVE' \| 'PAUSED'` | Campaign status |
+
+### `.adSet(name, config)`
+
+Adds an ad set. The `optimization` field is type-safe based on campaign objective.
+
+```ts
+campaign.adSet('Ad Set Name', {
+  targeting: [geo('US'), languages('en')],
+  interests: [interests('technology')],
+  optimization: 'LINK_CLICKS',  // constrained by objective type
+  ad: {
+    creative: image('./assets/hero.png', { /* ... */ }),
+  },
+})
+```
+
+---
+
+## Budget helpers
+
+```ts
+import { daily, monthly, lifetime, eur, usd } from '@upspawn/ads'
+
+daily(20)           // $20/day
+daily(eur(15))      // €15/day
+monthly(500)        // $500/month
+lifetime(1000)      // $1,000 lifetime
+```
+
+---
+
+## Keyword helpers
+
+```ts
+import { exact, phrase, broad, keywords } from '@upspawn/ads'
+
+exact('keyword one', 'keyword two')   // Returns NegativeKeyword[]
+phrase('keyword phrase')
+broad('keyword term')
+
+// Spread into keywords array:
+keywords: [...exact('a'), ...phrase('b'), ...broad('c')]
+```
+
+---
+
+## Ad helpers
+
+```ts
+import { headlines, descriptions, rsa, url } from '@upspawn/ads'
+
+rsa(
+  headlines(
+    'Headline One',     // ≤ 30 chars (validated at construction)
+    'Headline Two',
+    'Headline Three',
+  ),
+  descriptions(
+    'Description one — up to 90 characters.',
+    'Description two.',
+  ),
+  url('https://example.com/page'),
+)
+```
+
+`headlines()` accepts 3–15 strings. `descriptions()` accepts 2–4 strings. Both validate character limits using branded types — invalid values are TypeScript errors.
+
+---
+
+## Extension helpers
+
+```ts
+import { link, sitelinks, callouts } from '@upspawn/ads'
+
+// Used with .sitelinks()
+link('Label', 'https://example.com/page', {
+  description1: 'Optional line 1',  // ≤ 35 chars
+  description2: 'Optional line 2',  // ≤ 35 chars
+})
+```
+
+---
+
+## Targeting helpers
+
+```ts
+import { geo, languages, weekdays, hours, targeting, audiences } from '@upspawn/ads'
+
+geo('US', 'CA', 'GB')              // Country targeting by ISO code
+languages('en', 'de')              // Language targeting by ISO code
+weekdays()                         // Mon–Fri schedule
+hours(9, 17)                       // Hours 9am–5pm
+
+// Compose into a Targeting object:
+targeting(
+  geo('US'),
+  languages('en'),
+  weekdays(),
+)
+```
+
+---
+
+## Negatives helper
+
+```ts
+import { negatives } from '@upspawn/ads'
+
+// Returns an array of negative keywords (broad match by default)
+const shared = negatives('free', 'download', 'tutorial')
+```
+
+Use with campaign-level `negatives` field or spread into `.group()` keywords.
+
+---
+
+## Meta creative helpers
+
+```ts
+import { image, video, carousel } from '@upspawn/ads'
+
+// Image ad
+image('./assets/hero.png', {
+  headline: 'Try It Free',
+  primaryText: 'The fastest way to get X done.',
+  cta: 'SIGN_UP',
+  url: 'https://example.com',
+})
+
+// Video ad
+video('./assets/demo.mp4', {
+  thumbnail: './assets/thumb.png',
+  headline: 'See How It Works',
+  primaryText: 'Watch our 60-second demo.',
+  cta: 'WATCH_MORE',
+  url: 'https://example.com/demo',
+})
+
+// Carousel
+carousel({
+  primaryText: 'Discover our features',
+  cards: [
+    { image: './assets/f1.png', headline: 'Feature 1', url: 'https://example.com/1' },
+    { image: './assets/f2.png', headline: 'Feature 2', url: 'https://example.com/2' },
+  ],
+})
+```
+
+---
+
+## Meta targeting helpers
+
+```ts
+import { interests, behaviors } from '@upspawn/ads'
+
+// Use interest/behavior names from `ads search interests` / `ads search behaviors`
+interests('technology', 'software as a service')
+behaviors('small business owners')
+```
+
+---
+
+## Meta bidding helpers
+
+```ts
+import { lowestCost, costCap, bidCap, minimumRoas } from '@upspawn/ads'
+
+lowestCost()          // Let Meta optimize spend
+costCap(15)           // Max cost per result
+bidCap(10)            // Max bid per auction
+minimumRoas(2.0)      // Minimum return on ad spend
+```
+
+---
+
+## AI namespace
+
+```ts
+import { ai } from '@upspawn/ads'
+
+// In RSA position
+ai.rsa('Write copy for a file renaming tool targeting accountants')
+
+// In keywords array
+ai.keywords('Suggest keywords for PDF automation tools')
+
+// Meta copy (in place of image/video config fields)
+ai.metaCopy('Write Meta ad copy for SaaS productivity tool')
+
+// Meta interests
+ai.interests('Suggest interests for B2B SaaS targeting')
+```
+
+See [AI Generation](/docs/guides/ai-generation) for the full workflow.
+
+---
+
+## `defineConfig(config)`
+
+Identity function for typed `ads.config.ts` files.
+
+```ts
+import { defineConfig } from '@upspawn/ads'
+
+export default defineConfig({
+  google: {
+    customerId: '1234567890',
+    managerId: '0987654321',
+  },
+  meta: {
+    accountId: '1234567890',
+    pageId: '9876543210',
+  },
+})
+```
+
+See [Configuration Reference](/docs/reference/configuration) for all options.

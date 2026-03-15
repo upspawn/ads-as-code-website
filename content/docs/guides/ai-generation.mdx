@@ -1,0 +1,136 @@
+---
+title: AI Generation
+description: Use AI markers to generate ad copy, keywords, and targeting suggestions with LLMs.
+---
+
+The SDK includes an `ai` namespace for embedding AI generation markers in campaign definitions. Markers are inert placeholders — the actual LLM call happens when you run `ads plan` or `ads apply`.
+
+---
+
+## AI markers
+
+Import the `ai` namespace and use it wherever you'd normally provide content:
+
+```ts title="campaigns/brand.ts"
+import { google, daily, exact, rsa, url, ai } from '@upspawn/ads'
+
+export default google.search('Brand', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .group('brand-en', {
+    keywords: [
+      ...exact('my product'),
+      // Generate additional keyword suggestions
+      ai.keywords('Suggest keywords for a file renaming SaaS tool'),
+    ],
+    ad: rsa(
+      // Generate headlines and descriptions
+      ai.rsa('Write RSA copy for a file renaming tool targeting accountants'),
+      url('https://example.com'),
+    ),
+  })
+```
+
+### Available markers
+
+| Marker | Usage | Generates |
+|--------|-------|-----------|
+| `ai.rsa(prompt)` | In place of `headlines() + descriptions()` | RSA headlines and descriptions |
+| `ai.keywords(prompt)` | Spread into `keywords` array | Keyword suggestions |
+| `ai.metaCopy(prompt)` | In place of Meta creative content | Meta ad headline, primary text |
+| `ai.interests(prompt)` | In place of Meta interests | Interest targeting suggestions |
+
+---
+
+## Generating copy
+
+Run `ads plan` — it will detect markers, call the LLM, and show the generated content in the diff:
+
+```bash
+ads plan
+```
+
+To generate and write back to your campaign files:
+
+```bash
+ads generate
+```
+
+This resolves all `ai.*` markers in your campaign files, calls the configured LLM, and writes the results back into your TypeScript files — replacing the markers with real content.
+
+---
+
+## Optimizing existing copy
+
+```bash
+ads optimize
+```
+
+Analyzes your existing campaign copy (headlines, descriptions, keywords) and suggests improvements. The suggestions are presented as a diff — you review and approve before anything is written.
+
+For Meta campaigns:
+
+```bash
+ads optimize --provider meta
+```
+
+---
+
+## Meta copy markers
+
+```ts title="campaigns/meta-traffic.ts"
+import { meta, daily, image, lowestCost, ai } from '@upspawn/ads'
+
+export default meta.traffic('Traffic - Product', {
+  budget: daily(30),
+  bidding: lowestCost(),
+})
+  .adSet('US - AI Copy', {
+    targeting: [geo('US')],
+    interests: ai.interests('Suggest interests for SaaS productivity tools'),
+    optimization: 'LINK_CLICKS',
+    ad: {
+      creative: image('./assets/hero.png', ai.metaCopy(
+        'Write Meta ad copy for a file renaming tool. Audience: accountants and bookkeepers.',
+      )),
+    },
+  })
+```
+
+---
+
+## Configuration
+
+Configure the AI provider in `ads.config.ts`:
+
+```ts title="ads.config.ts"
+import { defineConfig } from '@upspawn/ads'
+
+export default defineConfig({
+  google: {
+    customerId: '1234567890',
+  },
+  ai: {
+    provider: 'openai',       // 'openai' | 'anthropic'
+    model: 'gpt-4o',
+  },
+})
+```
+
+The AI module uses the standard provider API keys from your environment (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`).
+
+---
+
+## Workflow
+
+The typical AI-assisted workflow:
+
+1. **Seed your campaigns** — write the structure (ad groups, targeting) manually
+2. **Add markers** — use `ai.rsa()`, `ai.keywords()` where you want generated content
+3. **Generate** — run `ads generate` to fill in the markers
+4. **Review** — inspect the generated content in your files
+5. **Optimize** — run `ads optimize` periodically to get improvement suggestions
+6. **Apply** — run `ads apply` as normal
+
+Generated content is written back as real TypeScript — you own the output and can edit it freely. Re-running `ads generate` will only process files that still have unresolved `ai.*` markers.

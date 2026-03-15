@@ -1,0 +1,242 @@
+---
+title: CLI Reference
+description: All ads-as-code CLI commands with flags and examples.
+---
+
+The `ads` CLI is the main interface for interacting with ad platforms. All commands are run from your project directory (where `ads.config.ts` lives).
+
+---
+
+## `ads plan`
+
+Preview changes without modifying anything. Fetches live state from the platform, diffs against your TypeScript definitions, and displays what will be created, updated, or deleted.
+
+```bash
+ads plan
+ads plan --provider google
+ads plan --provider meta
+```
+
+| Flag | Description |
+|------|-------------|
+| `--provider <name>` | Limit to a specific provider (`google` or `meta`) |
+
+Example output:
+
+```
++ campaign   Brand Campaign
++ adGroup    Brand Campaign / brand-en
++ keyword    Brand Campaign / brand-en / kw:my-product:EXACT
+~ budget     Brand Campaign  $15/day → $20/day
+- keyword    Old Campaign / old-group / kw:old-keyword:BROAD
+```
+
+---
+
+## `ads apply`
+
+Applies changes to the ad platform. Runs a plan first, then executes mutations in dependency order (campaign → ad group → keyword → ad → extensions).
+
+```bash
+ads apply
+ads apply --dry-run
+ads apply --provider google
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Show what would be done, but make no API calls |
+| `--provider <name>` | Limit to a specific provider |
+
+Mutations are applied parent-first for creates and child-first for deletes. On the first failure, execution stops to avoid orphaned resources.
+
+---
+
+## `ads import`
+
+Pulls all campaigns from the platform and generates TypeScript definitions. Writes files to `campaigns/`.
+
+```bash
+ads import
+ads import --provider meta
+ads import --out campaigns/imported/
+```
+
+| Flag | Description |
+|------|-------------|
+| `--provider <name>` | Provider to import from (default: `google`) |
+| `--out <dir>` | Output directory (default: `campaigns/`) |
+
+This is useful for bootstrapping a new project from existing campaigns. The generated TypeScript is idiomatic — using `google.search()`, `rsa()`, `exact()`, etc. — not raw JSON dumps.
+
+---
+
+## `ads pull`
+
+Fetches live state for campaigns already in the cache and shows drift. Unlike `plan`, this doesn't discover new campaigns not in your TypeScript files — it only checks resources the cache knows about.
+
+```bash
+ads pull
+```
+
+Use this to detect out-of-band changes (someone edited campaigns directly in the Google Ads UI).
+
+---
+
+## `ads validate`
+
+Discovers and flattens all campaigns in `campaigns/**/*.ts`, reports any errors (invalid character counts, missing required fields, etc.) without making any API calls.
+
+```bash
+ads validate
+```
+
+Useful in CI to catch errors before deploying.
+
+---
+
+## `ads status`
+
+Fetches and displays live state from the platform.
+
+```bash
+ads status
+ads status --provider meta
+```
+
+| Flag | Description |
+|------|-------------|
+| `--provider <name>` | Limit to a specific provider |
+
+---
+
+## `ads auth`
+
+Authenticates with an ad platform and verifies the connection.
+
+```bash
+ads auth google
+ads auth meta
+```
+
+For Google Ads, this runs an OAuth flow and saves the refresh token. For Meta, it verifies the `FB_ADS_ACCESS_TOKEN` environment variable.
+
+---
+
+## `ads init`
+
+Scaffolds a new project in the current directory.
+
+```bash
+ads init
+ads init --name "My Ads Project"
+```
+
+Creates:
+- `ads.config.ts` with a `defineConfig()` template
+- `campaigns/` directory with a sample campaign file
+
+---
+
+## `ads doctor`
+
+Runs diagnostic checks on your project setup: credentials, config file, campaign file syntax, API connectivity.
+
+```bash
+ads doctor
+```
+
+Run this first when troubleshooting.
+
+---
+
+## `ads generate`
+
+Resolves `ai.*` markers in campaign files by calling the configured LLM. Writes the generated content back to the TypeScript files, replacing the markers.
+
+```bash
+ads generate
+ads generate --provider meta
+```
+
+| Flag | Description |
+|------|-------------|
+| `--provider <name>` | Limit to a specific provider |
+
+See [AI Generation](/docs/guides/ai-generation) for details.
+
+---
+
+## `ads optimize`
+
+Analyzes existing campaign copy and suggests improvements. Presents suggestions as a diff; you approve before anything is written.
+
+```bash
+ads optimize
+ads optimize --provider meta
+```
+
+---
+
+## `ads search`
+
+Searches Meta's targeting API for interests and behaviors.
+
+```bash
+ads search interests "productivity software"
+ads search behaviors "small business owners"
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `interests <query>` | Search for interest targeting options |
+| `behaviors <query>` | Search for behavior targeting options |
+
+Results show the interest/behavior name and ID for use in your campaign definitions.
+
+---
+
+## `ads audiences`
+
+Lists Meta custom audiences available in your ad account.
+
+```bash
+ads audiences
+```
+
+---
+
+## `ads history`
+
+Shows the operation history from the SQLite cache — a log of all creates, updates, and deletes with timestamps.
+
+```bash
+ads history
+ads history --limit 50
+ads history --since 2025-01-01
+```
+
+| Flag | Description |
+|------|-------------|
+| `--limit <n>` | Number of entries to show (default: 20) |
+| `--since <date>` | Show entries since this date |
+
+---
+
+## `ads cache`
+
+Manage the SQLite cache.
+
+```bash
+ads cache stats    # Show cache statistics
+ads cache clear    # Clear all cached state
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `stats` | Show cache size, resource count, last updated |
+| `clear` | Delete all cached resource mappings and history |
+
+> **Warning:** Clearing the cache means the next `ads apply` will treat all resources as new. If the platform already has them, this will cause duplicate creation errors. Only clear the cache if you know what you're doing.
+
+See [Cache Reference](/docs/reference/cache) for details.

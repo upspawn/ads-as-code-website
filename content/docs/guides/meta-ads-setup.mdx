@@ -1,0 +1,134 @@
+---
+title: Meta Ads Setup
+description: Set up a Meta Business App and get a long-lived system user access token for the Meta Ads API.
+---
+
+Meta uses a long-lived access token from a system user, rather than an OAuth flow. This token doesn't expire unless manually revoked.
+
+## Overview
+
+You need:
+1. **Meta Business App** — a developer app with the `ads_management` permission
+2. **System user** — a non-human user attached to your Business Manager
+3. **Access token** — a long-lived token generated from the system user
+4. **Ad account ID** — the ad account you want to manage
+5. **Page ID** — your Facebook Page (required for ad creatives)
+
+---
+
+## Step 1: Set up Meta Business Suite
+
+If you don't already have a Business Manager:
+
+1. Go to [business.facebook.com](https://business.facebook.com) and create a Business Manager
+2. Add your ad account to the Business Manager
+
+---
+
+## Step 2: Create a Meta App
+
+1. Go to [Meta for Developers](https://developers.facebook.com)
+2. Click **My Apps** → **Create App**
+3. Select **Other** as the use case, then **Business** as the app type
+4. Fill in a name (e.g. "ads-as-code") and connect it to your Business Manager
+5. On the app dashboard, add the **Marketing API** product:
+   - Click **Add Product** → find **Marketing API** → click **Set Up**
+
+---
+
+## Step 3: Create a system user
+
+System users are non-human accounts that can authenticate without expiring tokens.
+
+1. Go to [Business Settings](https://business.facebook.com/settings) → **Users** → **System Users**
+2. Click **Add** → name it (e.g. "ads-as-code") → role: **Admin**
+3. Click **Add Assets** → select your ad account → grant **Full Control**
+4. If you need to manage Page-linked ads: add your Facebook Page as an asset too
+
+---
+
+## Step 4: Generate an access token
+
+1. In Business Settings → **System Users**, click on your system user
+2. Click **Generate New Token**
+3. Select your app (the one you created in Step 2)
+4. Select these permissions:
+   - `ads_management`
+   - `ads_read`
+   - `business_management`
+   - `pages_read_engagement` (if managing page-linked ads)
+5. Click **Generate Token** and copy it
+
+This is a **long-lived token** — it doesn't expire unless revoked.
+
+> **Keep this token secret.** Treat it like a password. Don't commit it to git.
+
+---
+
+## Step 5: Find your account ID and page ID
+
+**Ad account ID:**
+
+1. Go to [Ads Manager](https://adsmanager.facebook.com)
+2. The account ID appears in the URL: `act=1234567890`
+3. Use the numeric ID (with or without the `act_` prefix — the SDK handles both)
+
+**Page ID:**
+
+1. Go to your Facebook Page
+2. Click **About** → scroll to the bottom
+3. The Page ID appears under **More Info**
+
+Alternatively, in Ads Manager: **Settings** → **Page Settings** → find the page ID.
+
+---
+
+## Step 6: Configure
+
+Set the access token as an environment variable:
+
+```bash
+export FB_ADS_ACCESS_TOKEN="your-long-lived-token"
+```
+
+Add your account and page IDs to `ads.config.ts`:
+
+```ts title="ads.config.ts"
+import { defineConfig } from '@upspawn/ads'
+
+export default defineConfig({
+  meta: {
+    accountId: '1234567890',
+    pageId: '9876543210',
+  },
+})
+```
+
+---
+
+## Step 7: Verify
+
+```bash
+ads doctor
+```
+
+This checks that your credentials are valid and the account is accessible.
+
+---
+
+## Troubleshooting
+
+**`OAuthException: Invalid OAuth access token`**
+The token is invalid or has been revoked. Generate a new token from the system user in Business Settings.
+
+**`OAuthException: (#200) The user hasn't authorized the application to perform this action`**
+The token is missing required permissions. Regenerate it with `ads_management`, `ads_read`, and `business_management`.
+
+**`Invalid account ID`**
+Make sure you're using the numeric ID only. Strip any `act_` prefix, or leave it — the SDK handles both formats.
+
+**Token expired**
+System user tokens don't expire by default, but they can be revoked. If a token stops working, generate a new one.
+
+**App in development mode**
+If your Meta app is in development mode, the token only works for users who have the app role (admin/developer). Switch the app to **Live** mode in the app dashboard, or add your system user as a tester.

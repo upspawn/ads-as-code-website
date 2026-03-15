@@ -1,0 +1,204 @@
+---
+title: Campaign Variants
+description: Expand campaigns across locales, ICPs, and audience segments using TypeScript patterns.
+---
+
+Because campaigns are plain TypeScript, you can use loops, maps, and functions to generate many campaigns from a shared template. This page shows patterns for locale expansion, ICP variants, and audience segmentation.
+
+---
+
+## Locale expansion
+
+The most common pattern: one campaign structure, multiple languages.
+
+```ts title="campaigns/product-locales.ts"
+import {
+  google,
+  daily,
+  phrase,
+  headlines,
+  descriptions,
+  rsa,
+  url,
+} from '@upspawn/ads'
+
+const locales = [
+  {
+    code: 'en',
+    country: 'US',
+    keywords: ['file renamer', 'rename pdf automatically', 'bulk rename files'],
+    headlines: ['Rename Files with AI', '50 Free Monthly', 'No Credit Card'],
+    descriptions: ['AI reads PDFs and renames them by content. 3-minute setup.'],
+    url: 'https://example.com',
+  },
+  {
+    code: 'de',
+    country: 'DE',
+    keywords: ['dateien umbenennen', 'pdf automatisch umbenennen'],
+    headlines: ['KI benennt Dateien um', '50 kostenlos monatlich', 'Keine Kreditkarte'],
+    descriptions: ['KI liest PDFs und benennt sie nach Inhalt. 3 Minuten Setup.'],
+    url: 'https://example.com/de',
+  },
+  {
+    code: 'fr',
+    country: 'FR',
+    keywords: ['renommer fichiers', 'renommer pdf automatiquement'],
+    headlines: ['IA Renomme les Fichiers', '50 Gratuits par Mois', 'Sans CB'],
+    descriptions: ["L'IA lit les PDF et les renomme par contenu. Configuration en 3 min."],
+    url: 'https://example.com/fr',
+  },
+] as const
+
+export const localeCampaigns = locales.map((locale) =>
+  google.search(`Product - ${locale.code.toUpperCase()}`, {
+    budget: daily(20),
+    bidding: 'maximize-clicks',
+  })
+    .group(`main-${locale.code}`, {
+      keywords: [...phrase(...locale.keywords)],
+      ad: rsa(
+        headlines(...locale.headlines),
+        descriptions(...locale.descriptions),
+        url(locale.url),
+      ),
+    })
+)
+
+// Named exports so the CLI discovers them
+export const [campaignEn, campaignDe, campaignFr] = localeCampaigns
+```
+
+---
+
+## ICP (Ideal Customer Profile) variants
+
+Target different audience segments with tailored messaging:
+
+```ts title="campaigns/icps.ts"
+import { google, daily, phrase, headlines, descriptions, rsa, url } from '@upspawn/ads'
+
+type IcpConfig = {
+  name: string
+  keywords: string[]
+  headlines: string[]
+  descriptions: string[]
+  url: string
+}
+
+const icps: IcpConfig[] = [
+  {
+    name: 'Accountants',
+    keywords: ['invoice renaming software', 'accounting file organization', 'rename invoices automatically'],
+    headlines: ['Rename Invoices with AI', 'For Accountants & Bookkeepers', '50 Free Monthly'],
+    descriptions: ['AI names invoices by vendor, date, amount. Stop doing it manually.'],
+    url: 'https://example.com/solutions/accountants',
+  },
+  {
+    name: 'Law Firms',
+    keywords: ['law firm document management', 'legal file naming', 'rename legal documents'],
+    headlines: ['AI for Legal Documents', 'Enforce Naming Standards', 'GDPR Ready'],
+    descriptions: ['Auto-rename contracts, filings, and client docs. Custom templates.'],
+    url: 'https://example.com/solutions/legal',
+  },
+  {
+    name: 'Contractors',
+    keywords: ['contractor document organization', 'construction file management', 'rename project files'],
+    headlines: ['Organize Project Files', 'AI Names Your Docs', 'By Job, Date, Client'],
+    descriptions: ['Stop renaming project files manually. AI reads content, names them right.'],
+    url: 'https://example.com/solutions/contractors',
+  },
+]
+
+export const icpCampaigns = Object.fromEntries(
+  icps.map((icp) => [
+    `campaign${icp.name.replace(/\s+/g, '')}`,
+    google.search(`Product - ${icp.name}`, {
+      budget: daily(15),
+      bidding: 'maximize-conversions',
+    })
+      .group(`main-en`, {
+        keywords: [...phrase(...icp.keywords)],
+        ad: rsa(
+          headlines(...icp.headlines),
+          descriptions(...icp.descriptions),
+          url(icp.url),
+        ),
+      }),
+  ])
+)
+
+// Export individually for discovery
+export const { campaignAccountants, campaignLawFirms, campaignContractors } = icpCampaigns
+```
+
+---
+
+## Integration variants
+
+Generate one campaign per integration with shared structure:
+
+```ts title="campaigns/integrations.ts"
+import {
+  google,
+  daily,
+  phrase,
+  headlines,
+  descriptions,
+  rsa,
+  url,
+  link,
+  callouts,
+} from '@upspawn/ads'
+import { shared } from './_negatives.ts'
+
+const integrations = [
+  {
+    name: 'Dropbox',
+    slug: 'dropbox',
+    keywords: ['dropbox file renamer', 'automate dropbox', 'dropbox naming convention'],
+    headline1: 'Automate Dropbox Filing',
+    description: 'Connect Dropbox. AI reads PDFs and renames them. 3-minute setup.',
+  },
+  {
+    name: 'Google Drive',
+    slug: 'google-drive',
+    keywords: ['google drive file renamer', 'bulk rename drive files', 'organize google drive'],
+    headline1: 'Rename Google Drive Files',
+    description: 'AI reads Drive PDFs, renames them by content. Enforces naming conventions.',
+  },
+  {
+    name: 'OneDrive',
+    slug: 'onedrive',
+    keywords: ['onedrive file renamer', 'rename onedrive files', 'onedrive document management'],
+    headline1: 'Organize OneDrive Files',
+    description: 'AI-powered file renaming for OneDrive. Set rules once, runs forever.',
+  },
+] as const
+
+export const integrationCampaigns = integrations.map((int) =>
+  google.search(`Search - ${int.name}`, {
+    budget: daily(5),
+    bidding: 'maximize-clicks',
+    negatives: shared,
+  })
+    .group(`${int.slug}-en`, {
+      keywords: [...phrase(...int.keywords)],
+      ad: rsa(
+        headlines(int.headline1, 'AI Renames PDFs', '50 Free Monthly', 'No Credit Card'),
+        descriptions(int.description, 'Free plan available. Connect in 3 minutes.'),
+        url(`https://example.com/integrations/${int.slug}`),
+      ),
+    })
+    .callouts('No Credit Card', 'Free Plan', 'GDPR Ready')
+)
+
+export const [campaignDropbox, campaignDrive, campaignOneDrive] = integrationCampaigns
+```
+
+---
+
+## Notes
+
+- **Named exports only.** The CLI discovers campaigns by checking for `provider` and `kind` fields on each export. Spread arrays (`export const [a, b] = ...`) work if each element is a campaign object.
+- **Stable names matter.** The campaign name (first argument to `google.search()`) is slugified to form the resource path. Changing it means the old campaign is deleted and a new one is created.
+- **Use `ads validate`** to check that all generated campaigns are valid before running `ads plan`.

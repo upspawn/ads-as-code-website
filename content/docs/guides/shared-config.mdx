@@ -1,0 +1,228 @@
+---
+title: Shared Config
+description: Share negatives, targeting presets, and factory patterns across campaigns.
+---
+
+As your campaign library grows, you'll want to share negatives, targeting rules, and structural patterns across multiple campaigns. This page covers common patterns.
+
+---
+
+## Shared negatives
+
+Define your negative keyword list once and spread it into each campaign:
+
+```ts title="campaigns/negatives.ts"
+import { negatives } from '@upspawn/ads'
+
+export const shared = negatives(
+  'free',
+  'tutorial',
+  'how to',
+  'download',
+  'alternative',
+  'open source',
+  'what is',
+  'pricing',
+)
+```
+
+Use it in campaigns:
+
+```ts title="campaigns/brand.ts"
+import { google, daily, exact } from '@upspawn/ads'
+import { shared } from './negatives.ts'
+
+export default google.search('Brand', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  negatives: shared,
+})
+  .group('brand-en', {
+    keywords: [...exact('my product')],
+    ad: rsa(/* ... */),
+  })
+```
+
+Combine shared negatives with campaign-specific ones:
+
+```ts
+negatives: [
+  ...shared,
+  ...broad('competitor-name', 'competitor-product'),
+]
+```
+
+---
+
+## Targeting presets
+
+Extract common targeting configurations into reusable objects:
+
+```ts title="campaigns/targeting-presets.ts"
+import { geo, languages, targeting } from '@upspawn/ads'
+
+export const usEnglish = targeting(
+  geo('US'),
+  languages('en'),
+)
+
+export const euGerman = targeting(
+  geo('DE', 'AT', 'CH'),
+  languages('de'),
+)
+
+export const globalEnglish = targeting(
+  geo('US', 'GB', 'CA', 'AU'),
+  languages('en'),
+)
+```
+
+Use in campaigns:
+
+```ts title="campaigns/product.ts"
+import { google, daily, phrase, rsa, headlines, descriptions, url } from '@upspawn/ads'
+import { usEnglish, euGerman } from './targeting-presets.ts'
+
+export const campaignUs = google.search('Product - US', {
+  budget: daily(40),
+  bidding: 'maximize-conversions',
+  targeting: usEnglish,
+})
+  .group('main', {
+    keywords: [...phrase('my product', 'buy my product')],
+    ad: rsa(
+      headlines('My Product', 'Start Free Today'),
+      descriptions('The fastest way to get X done.'),
+      url('https://example.com'),
+    ),
+  })
+
+export const campaignDe = google.search('Product - DE', {
+  budget: daily(20),
+  bidding: 'maximize-conversions',
+  targeting: euGerman,
+})
+  .group('main', {
+    keywords: [...phrase('mein produkt', 'mein produkt kaufen')],
+    ad: rsa(
+      headlines('Mein Produkt', 'Kostenlos starten'),
+      descriptions('Der schnellste Weg, Dinge zu erledigen.'),
+      url('https://example.com/de'),
+    ),
+  })
+```
+
+---
+
+## Factory functions
+
+For campaigns that share the same structure but differ in keywords and copy, use a factory function:
+
+```ts title="campaigns/integration-campaigns.ts"
+import {
+  google,
+  daily,
+  phrase,
+  headlines,
+  descriptions,
+  rsa,
+  url,
+  link,
+  sitelinks,
+  callouts,
+} from '@upspawn/ads'
+import { shared } from './negatives.ts'
+
+type IntegrationConfig = {
+  name: string
+  keywords: string[]
+  landingUrl: string
+  headlines: string[]
+  descriptions: string[]
+  sitelinkUrl: string
+}
+
+function integrationCampaign(config: IntegrationConfig) {
+  return google.search(`Search - ${config.name}`, {
+    budget: daily(5),
+    bidding: 'maximize-clicks',
+    negatives: shared,
+  })
+    .group(`${config.name.toLowerCase()}-en`, {
+      keywords: [...phrase(...config.keywords)],
+      ad: rsa(
+        headlines(...config.headlines),
+        descriptions(...config.descriptions),
+        url(config.landingUrl),
+      ),
+    })
+    .sitelinks(
+      link('See Pricing', 'https://example.com/pricing'),
+      link('Features', 'https://example.com/features'),
+    )
+    .callouts('No Credit Card', 'Free Plan Available', 'Cancel Anytime')
+}
+
+export const dropboxCampaign = integrationCampaign({
+  name: 'Dropbox',
+  keywords: ['dropbox file renamer', 'automate dropbox', 'organize dropbox'],
+  landingUrl: 'https://example.com/integrations/dropbox',
+  headlines: ['Automate Dropbox Filing', 'AI Renames Your Files', '50 Free Monthly'],
+  descriptions: ['Connect Dropbox. AI reads and renames PDFs automatically.'],
+  sitelinkUrl: 'https://example.com/integrations/dropbox',
+})
+
+export const driveCampaign = integrationCampaign({
+  name: 'Google Drive',
+  keywords: ['google drive file renamer', 'organize google drive', 'bulk rename drive'],
+  landingUrl: 'https://example.com/integrations/google-drive',
+  headlines: ['Rename Drive Files with AI', 'Auto-Organize Google Drive', '50 Free Monthly'],
+  descriptions: ['AI reads Drive PDFs, renames them by content. 3-minute setup.'],
+  sitelinkUrl: 'https://example.com/integrations/google-drive',
+})
+```
+
+---
+
+## File organization
+
+There's no required structure for the `campaigns/` directory — the CLI scans recursively. Common patterns:
+
+**By platform:**
+
+```
+campaigns/
+├── google/
+│   ├── brand.ts
+│   ├── product.ts
+│   └── competitors.ts
+└── meta/
+    ├── traffic.ts
+    └── retargeting.ts
+```
+
+**By campaign type:**
+
+```
+campaigns/
+├── brand.ts
+├── product/
+│   ├── us.ts
+│   └── de.ts
+├── integrations/
+│   ├── dropbox.ts
+│   └── drive.ts
+└── negatives.ts
+```
+
+**Shared utilities alongside campaigns:**
+
+```
+campaigns/
+├── _negatives.ts        # Convention: underscore prefix = not a campaign
+├── _targeting.ts
+├── _factories.ts
+└── brand.ts
+```
+
+> The CLI discovers exports by checking for `provider` and `kind` fields. Helper files that only export plain objects or functions won't be picked up as campaigns.

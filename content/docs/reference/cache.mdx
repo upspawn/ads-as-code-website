@@ -1,0 +1,121 @@
+---
+title: Cache Reference
+description: How the SQLite cache works, what it stores, and how to manage it.
+---
+
+The SDK uses a SQLite database to store resource mappings, snapshots, and operation history. This cache is what enables stable updates — without it, every `ads apply` would create duplicate resources.
+
+---
+
+## Location
+
+```
+.ads-cache/state.db
+```
+
+Created automatically on first `ads plan` or `ads apply`. Located in your project directory. Add it to `.gitignore` — it's machine-specific state.
+
+```text title=".gitignore"
+.ads-cache/
+```
+
+---
+
+## What's stored
+
+### Resource map
+
+Maps stable resource paths to platform IDs:
+
+```
+campaign-name/ad-group-name/kw:keyword-text:EXACT  →  1234567890
+campaign-name/ad-group-name/rsa:a3f2b1c4...         →  9876543210
+```
+
+This is how the SDK knows that `brand-campaign/brand-en/kw:my-product:EXACT` in your TypeScript corresponds to keyword ID `1234567890` in Google Ads. Without this mapping, every apply would try to create new resources.
+
+### Snapshots
+
+Point-in-time snapshots of platform state. Used by `ads pull` to detect out-of-band drift.
+
+### Operation history
+
+A log of all mutations: what was created, updated, or deleted, with timestamps and the before/after values.
+
+---
+
+## Cache commands
+
+### `ads cache stats`
+
+Shows cache statistics:
+
+```bash
+ads cache stats
+```
+
+```
+Cache: .ads-cache/state.db
+Resources: 147 entries
+Last updated: 2025-03-15 14:23:11
+Size: 284 KB
+```
+
+### `ads cache clear`
+
+Deletes all cached state:
+
+```bash
+ads cache clear
+```
+
+> **Warning:** After clearing the cache, `ads apply` has no record of existing resources. If the platform already has them, `ads apply` may fail with duplicate resource errors or create duplicates. Only clear if you're intentionally starting fresh, or if you've imported new state first with `ads import`.
+
+---
+
+## Operation history
+
+View the log of past operations:
+
+```bash
+ads history
+ads history --limit 50
+```
+
+Example output:
+
+```
+2025-03-15 14:23  CREATE  campaign       Brand Campaign
+2025-03-15 14:23  CREATE  adGroup        Brand Campaign / brand-en
+2025-03-15 14:23  CREATE  keyword        Brand Campaign / brand-en / kw:my-product:EXACT
+2025-03-15 14:23  CREATE  ad             Brand Campaign / brand-en / rsa:a3f2b1...
+2025-03-14 10:11  UPDATE  budget         Brand Campaign  $15/day → $20/day
+2025-03-10 09:44  DELETE  keyword        Old Campaign / old-group / kw:old-kw:BROAD
+```
+
+---
+
+## Drift detection
+
+`ads pull` uses snapshots to detect drift — changes made directly in the Google Ads UI or by other tools:
+
+```bash
+ads pull
+```
+
+This fetches live state for all resources in the cache and compares against the last snapshot. Any differences are shown as drift. Drift doesn't automatically update your TypeScript — it's informational.
+
+---
+
+## How resource identity works
+
+**Slugified paths** are computed deterministically from campaign and resource names:
+
+- Campaign: `brand-campaign` (from "Brand Campaign")
+- Ad group: `brand-campaign/brand-en`
+- Keyword: `brand-campaign/brand-en/kw:my-product:EXACT`
+- RSA ad: `brand-campaign/brand-en/rsa:a3f2b1c4d5...` (content hash of headlines + descriptions + URL)
+
+Renaming a campaign changes its path, which means the old campaign is treated as deleted and a new one is created. To rename without recreating, you'd need to update the cache mapping manually (not currently supported via CLI).
+
+**RSA ads use content-based identity.** Because Google Ads doesn't give RSAs a stable user-assignable name, the SDK tracks them by a hash of their sorted headlines, sorted descriptions, and final URL. Changing any headline means the old ad is deleted and a new one is created.

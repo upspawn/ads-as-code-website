@@ -1,0 +1,335 @@
+---
+title: Writing Campaigns
+description: A guide to defining Google Search and Meta campaigns using the ads-as-code TypeScript DSL.
+---
+
+Campaigns are plain TypeScript files in your `campaigns/` directory. Each file exports one or more campaign objects. The CLI scans all `campaigns/**/*.ts` files, collects exports with a `provider` and `kind` field, and uses them as your desired state.
+
+---
+
+## Google Search campaigns
+
+### Basic structure
+
+```ts title="campaigns/brand.ts"
+import {
+  google,
+  daily,
+  exact,
+  phrase,
+  broad,
+  headlines,
+  descriptions,
+  rsa,
+  url,
+} from '@upspawn/ads'
+
+export default google.search('Brand Campaign', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .group('brand-exact', {
+    keywords: [...exact('my product', 'my product app')],
+    ad: rsa(
+      headlines('My Product', 'Official Site', 'Start Free Today'),
+      descriptions('The fastest way to get things done.'),
+      url('https://example.com'),
+    ),
+  })
+  .group('brand-phrase', {
+    keywords: [...phrase('my product for teams', 'my product pricing')],
+    ad: rsa(
+      headlines('My Product for Teams', 'See Pricing', 'Free Trial'),
+      descriptions('Plans for every team size. Start free today.'),
+      url('https://example.com/pricing'),
+    ),
+  })
+```
+
+### Budget helpers
+
+```ts
+import { daily, monthly, lifetime, eur, usd } from '@upspawn/ads'
+
+daily(20)          // $20/day
+daily(eur(15))     // €15/day
+monthly(500)       // $500/month
+lifetime(1000)     // $1,000 lifetime budget
+```
+
+### Bidding strategies
+
+```ts
+google.search('Campaign', {
+  bidding: 'maximize-clicks',               // Maximize clicks (TARGET_SPEND)
+  bidding: 'maximize-conversions',          // Maximize conversions
+  bidding: { type: 'target-cpa', targetCpa: 15 },    // Target CPA
+  bidding: { type: 'target-roas', targetRoas: 3.0 }, // Target ROAS
+})
+```
+
+### Keyword match types
+
+```ts
+import { exact, phrase, broad } from '@upspawn/ads'
+
+exact('keyword one', 'keyword two')    // [keyword one], [keyword two]
+phrase('keyword phrase')               // "keyword phrase"
+broad('keyword term')                  // keyword term (broad match)
+```
+
+Spread into the `keywords` array:
+
+```ts
+keywords: [
+  ...exact('my product'),
+  ...phrase('my product review', 'buy my product'),
+  ...broad('my product alternative'),
+]
+```
+
+### RSA ads
+
+Responsive Search Ads require 3–15 headlines (max 30 chars each) and 2–4 descriptions (max 90 chars each):
+
+```ts
+import { headlines, descriptions, rsa, url } from '@upspawn/ads'
+
+rsa(
+  headlines(
+    'My Product',             // ≤ 30 chars
+    'Official Site',
+    'Start Free Today',
+    'No Credit Card Required',
+    'Used by 10,000 Teams',
+  ),
+  descriptions(
+    'The fastest way to do X. Set up in minutes.',   // ≤ 90 chars
+    'Free plan available. Connect your tools.',
+  ),
+  url('https://example.com/landing-page'),
+)
+```
+
+Character limits are validated at construction time — you'll get a TypeScript error (branded type) if you exceed them.
+
+**RSA identity is content-based.** The SDK tracks ads by a hash of their sorted headlines + descriptions + URL. If you change any headline, it's treated as a new ad.
+
+### Extensions
+
+**Sitelinks:**
+
+```ts
+import { link, sitelinks } from '@upspawn/ads'
+
+google.search('Campaign', { ... })
+  .group('ad-group', { ... })
+  .sitelinks(
+    link('Pricing', 'https://example.com/pricing', {
+      description1: '50 docs free monthly',
+      description2: 'No credit card required',
+    }),
+    link('Features', 'https://example.com/features'),
+    link('Blog', 'https://example.com/blog'),
+  )
+```
+
+**Callouts:**
+
+```ts
+.callouts('No Credit Card', 'Cancel Anytime', 'Free Plan Available')
+```
+
+### Campaign-level negatives
+
+```ts
+google.search('Campaign', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  negatives: [
+    ...broad('free', 'download', 'tutorial'),
+    ...phrase('how to rename files', 'bulk rename utility'),
+  ],
+})
+```
+
+### Multi-locale campaigns
+
+Export multiple campaign objects from one file, or use separate files per locale:
+
+```ts title="campaigns/search-en-de.ts"
+import { google, daily, phrase, headlines, descriptions, rsa, url } from '@upspawn/ads'
+
+const base = {
+  budget: daily(20),
+  bidding: 'maximize-clicks' as const,
+}
+
+export const campaignEn = google.search('Brand - EN', base)
+  .group('brand-en', {
+    keywords: [...phrase('my product')],
+    ad: rsa(
+      headlines('My Product', 'Official Site', 'Start Free'),
+      descriptions('The fastest way to get things done.'),
+      url('https://example.com'),
+    ),
+  })
+
+export const campaignDe = google.search('Brand - DE', base)
+  .group('brand-de', {
+    keywords: [...phrase('mein produkt')],
+    ad: rsa(
+      headlines('Mein Produkt', 'Offizielle Seite', 'Kostenlos starten'),
+      descriptions('Der schnellste Weg, Dinge zu erledigen.'),
+      url('https://example.com/de'),
+    ),
+  })
+```
+
+---
+
+## Meta campaigns
+
+### Campaign types
+
+```ts
+import { meta } from '@upspawn/ads'
+
+meta.traffic(...)       // Drive traffic to a URL
+meta.conversions(...)   // Optimize for conversions
+meta.leads(...)         // Lead generation
+meta.awareness(...)     // Brand awareness
+```
+
+### Basic structure
+
+```ts title="campaigns/meta-traffic.ts"
+import {
+  meta,
+  daily,
+  image,
+  geo,
+  languages,
+  interests,
+  lowestCost,
+} from '@upspawn/ads'
+
+export default meta.traffic('Traffic - Product', {
+  budget: daily(30),
+  bidding: lowestCost(),
+})
+  .adSet('US English', {
+    targeting: [geo('US'), languages('en')],
+    interests: [interests('technology', 'software')],
+    optimization: 'LINK_CLICKS',
+    ad: {
+      creative: image('./assets/hero.png', {
+        headline: 'Try My Product Free',
+        primaryText: 'The fastest way to get X done.',
+        cta: 'LEARN_MORE',
+        url: 'https://example.com',
+      }),
+    },
+  })
+```
+
+### Meta creative types
+
+**Image ad:**
+
+```ts
+import { image } from '@upspawn/ads'
+
+image('./assets/hero.png', {
+  headline: 'Try My Product Free',
+  primaryText: 'The fastest way to get X done. No credit card required.',
+  description: 'Start today',
+  cta: 'SIGN_UP',
+  url: 'https://example.com/signup',
+})
+```
+
+**Video ad:**
+
+```ts
+import { video } from '@upspawn/ads'
+
+video('./assets/demo.mp4', {
+  thumbnail: './assets/thumb.png',
+  headline: 'See How It Works',
+  primaryText: 'Watch our 60-second demo.',
+  cta: 'WATCH_MORE',
+  url: 'https://example.com/demo',
+})
+```
+
+**Carousel ad:**
+
+```ts
+import { carousel } from '@upspawn/ads'
+
+carousel({
+  primaryText: 'Discover our features',
+  cards: [
+    { image: './assets/feature-1.png', headline: 'Feature One', url: 'https://example.com/feature-1' },
+    { image: './assets/feature-2.png', headline: 'Feature Two', url: 'https://example.com/feature-2' },
+    { image: './assets/feature-3.png', headline: 'Feature Three', url: 'https://example.com/feature-3' },
+  ],
+})
+```
+
+### Meta targeting
+
+```ts
+import { geo, languages, interests, behaviors } from '@upspawn/ads'
+
+targeting: [
+  geo('US', 'CA', 'GB'),
+  languages('en'),
+],
+interests: [interests('technology', 'software as a service')],
+behaviors: [behaviors('small business owners')],
+```
+
+Use `ads search interests "query"` and `ads search behaviors "query"` to find valid interest and behavior names.
+
+### Meta bidding
+
+```ts
+import { lowestCost, costCap, bidCap, minimumRoas } from '@upspawn/ads'
+
+lowestCost()                    // Lowest cost (no bid cap)
+costCap(15)                     // Cost cap at $15
+bidCap(10)                      // Bid cap at $10
+minimumRoas(2.0)                // Minimum ROAS of 2x
+```
+
+---
+
+## Campaign discovery
+
+The CLI automatically discovers campaigns by scanning `campaigns/**/*.ts` and looking for exports with `provider` and `kind` fields. Both default exports and named exports work:
+
+```ts
+// Default export
+export default google.search('Campaign', { ... })
+
+// Named exports — both are discovered
+export const campaignEn = google.search('Campaign EN', { ... })
+export const campaignDe = google.search('Campaign DE', { ... })
+```
+
+Run `ads validate` to check all campaign files for errors without hitting the API.
+
+---
+
+## Resource paths
+
+Every resource gets a stable path used as its identifier:
+
+```
+campaign-name/ad-group-name/kw:keyword-text:EXACT
+campaign-name/ad-group-name/rsa:a3f2b1c4...
+```
+
+These paths map to platform IDs in the SQLite cache. Renaming a campaign in code is treated as a delete + create. If you want to rename without recreating, import first and update the cache mapping.

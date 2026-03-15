@@ -1,0 +1,134 @@
+---
+title: Configuration
+description: ads.config.ts setup, credentials resolution, and all configuration options.
+---
+
+## `ads.config.ts`
+
+Every project needs an `ads.config.ts` at the root. Use `defineConfig()` for type safety:
+
+```ts title="ads.config.ts"
+import { defineConfig } from '@upspawn/ads'
+
+export default defineConfig({
+  google: {
+    customerId: '1112223333',
+    managerId: '4445556666',
+  },
+  meta: {
+    accountId: '1234567890',
+    pageId: '9876543210',
+  },
+})
+```
+
+Run `ads init` to scaffold this file automatically.
+
+---
+
+## Google config
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `customerId` | `string` | Yes | Google Ads customer ID (no dashes) |
+| `managerId` | `string` | No | Manager (MCC) account ID |
+| `developerToken` | `string` | No | Override developer token (usually from credentials file) |
+
+---
+
+## Meta config
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `accountId` | `string` | Yes | Meta ad account ID |
+| `pageId` | `string` | Yes | Facebook Page ID for creatives |
+
+---
+
+## AI config
+
+```ts
+export default defineConfig({
+  google: { customerId: '...' },
+  ai: {
+    provider: 'openai',     // 'openai' | 'anthropic'
+    model: 'gpt-4o',
+  },
+})
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `provider` | `'openai' \| 'anthropic'` | LLM provider for AI generation |
+| `model` | `string` | Model ID to use |
+
+---
+
+## Credentials
+
+### Resolution order
+
+Credentials are resolved in this order (first match wins):
+
+1. Explicit values in `ads.config.ts`
+2. `~/.ads/credentials.json`
+3. Environment variables
+
+### `~/.ads/credentials.json`
+
+```json title="~/.ads/credentials.json"
+{
+  "google_client_id": "123-abc.apps.googleusercontent.com",
+  "google_client_secret": "GOCSPX-your-secret",
+  "google_refresh_token": "1//your-refresh-token",
+  "google_developer_token": "your-developer-token",
+  "google_customer_id": "1112223333",
+  "google_manager_id": "4445556666"
+}
+```
+
+This file lives in your home directory and is shared across all ads-as-code projects on your machine.
+
+### Environment variables
+
+Alternative to the credentials file. Useful in CI/CD environments.
+
+**Google Ads:**
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_ADS_CLIENT_ID` | OAuth client ID |
+| `GOOGLE_ADS_CLIENT_SECRET` | OAuth client secret |
+| `GOOGLE_ADS_REFRESH_TOKEN` | OAuth refresh token |
+| `GOOGLE_ADS_DEVELOPER_TOKEN` | Google Ads developer token |
+| `GOOGLE_ADS_CUSTOMER_ID` | Customer account ID |
+| `GOOGLE_ADS_MANAGER_ID` | Manager (MCC) account ID |
+
+**Meta Ads:**
+
+| Variable | Description |
+|----------|-------------|
+| `FB_ADS_ACCESS_TOKEN` | Long-lived system user access token |
+
+### CI/CD setup
+
+In CI, set environment variables as secrets. Example GitHub Actions setup:
+
+```yaml title=".github/workflows/deploy-ads.yml"
+- name: Apply ad changes
+  env:
+    GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+    GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+    GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+    GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+    GOOGLE_ADS_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_CUSTOMER_ID }}
+  run: ads apply
+```
+
+---
+
+## Campaign discovery
+
+The CLI scans `campaigns/**/*.ts` relative to the config file. All TypeScript files in that directory (recursively) are imported, and any export with `provider` and `kind` fields is treated as a campaign.
+
+You can't change the scan directory in config — it's always `campaigns/`. Use subdirectories to organize.
