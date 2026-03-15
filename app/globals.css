@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "fumadocs-ui/css/ocean.css";
+@import "fumadocs-ui/css/preset.css";
 
 @theme {
   --font-heading: var(--font-fraunces), serif;

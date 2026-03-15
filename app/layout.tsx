@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces, Space_Mono } from "next/font/google";
 import "./globals.css";
-import { Nav } from "@/components/Nav";
-import { Footer } from "@/components/Footer";
+import { RootProvider } from "fumadocs-ui/provider/next";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -51,11 +50,10 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${fraunces.variable} ${dmSans.variable} ${spaceMono.variable}`}
+      suppressHydrationWarning
     >
       <body className="bg-bg text-text font-body antialiased">
-        <Nav />
-        {children}
-        <Footer />
+        <RootProvider>{children}</RootProvider>
       </body>
     </html>
   );
