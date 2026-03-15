@@ -1,4 +1,5 @@
 import { HomeHero } from "@/components/HomeHero";
+import { HomeHowItWorks } from "@/components/HomeHowItWorks";
 import { HomeFeatureCard } from "@/components/HomeFeatureCard";
 import { StatsStrip } from "@/components/StatsStrip";
 import { FadeIn } from "@/components/FadeIn";
@@ -8,6 +9,7 @@ export default function Home() {
   return (
     <>
       <HomeHero />
+      <HomeHowItWorks />
       <StatsStrip />
       <section className="px-6 md:px-12 py-16 md:py-24 max-w-6xl mx-auto">
         <FadeIn>

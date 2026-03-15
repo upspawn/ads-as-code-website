@@ -24,6 +24,44 @@ export const featureCards = [
   { title: "Developer Experience", description: "Your AI already knows TypeScript.", href: "/features/developer-experience" },
 ] as const;
 
+// How It Works — Define → Plan → Apply
+export const defineStep = `import { google, daily, exact, broad,
+  headlines, descriptions, rsa, url } from '@upspawn/ads'
+
+export default google.search('Brand - Arcflow', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .group('core-keywords', {
+    keywords: [
+      ...exact('workflow automation', 'ai automation tool'),
+      ...broad('automate business workflows'),
+    ],
+    ad: rsa(
+      headlines('Automate Any Workflow', 'AI-Powered', 'Free Trial'),
+      descriptions('Connect 200+ apps. Ship workflows in minutes.'),
+      url('https://arcflow.dev'),
+    ),
+  })`;
+
+export const planStep = `$ ads plan
+
++ campaign/brand-arcflow                         create
++ campaign/brand-arcflow/core-keywords            create
++ campaign/brand-arcflow/core-keywords/kw:...     create (4 keywords)
++ campaign/brand-arcflow/core-keywords/rsa        create
+
+  4 to create. Run ads apply to execute.`;
+
+export const applyStep = `$ ads apply
+
+✓ Created campaign/brand-arcflow
+✓ Created campaign/brand-arcflow/core-keywords
+✓ Created 4 keywords
+✓ Created RSA ad
+
+  4 resources created. 0 updated. 0 deleted.`;
+
 export const stats = [
   { value: "2", label: "Providers" },
   { value: "50+", label: "Helpers" },
