@@ -21,17 +21,28 @@ export const metadata: Metadata = {
     "Facebook and Instagram campaigns that live in git. Objective-typed builders, lookalike audiences, and placement control.",
 };
 
+// Matches the heroCode snippet exactly
 const metaTree: TreeNode = {
-  label: "Brand - Arcflow",
+  label: "Arcflow — Traffic — AI Enthusiasts",
   type: "campaign",
   children: [
     {
-      label: "professionals-25-45",
+      label: "AI Ops — USA",
       type: "adset",
       children: [
-        { label: "interests: SaaS, Automation", type: "keyword" },
-        { label: "lookalike: purchasers 2%", type: "keyword" },
-        { label: "Image → hero-banner.jpg", type: "creative" },
+        { label: "age: 28–55, geo: US", type: "keyword" },
+        { label: "interests: AI, SaaS, Zapier", type: "keyword" },
+        { label: "placements: feed, reels, stories", type: "keyword" },
+        { label: "hero-workflow.jpg → 'Automate Your Entire Workflow'", type: "creative" },
+      ],
+    },
+    {
+      label: "Lookalike — 1% Customers",
+      type: "adset",
+      children: [
+        { label: "geo: US, lookalike: customer-list-q1 1%", type: "keyword" },
+        { label: "placements: feed", type: "keyword" },
+        { label: "social-proof.jpg → 'Join 12,000+ Teams'", type: "creative" },
       ],
     },
   ],
@@ -40,7 +51,6 @@ const metaTree: TreeNode = {
 export default function MetaAdsPage() {
   return (
     <>
-      {/* Hero as CodeToResult */}
       <section className="px-6 md:px-12 pt-12 md:pt-20 pb-16 md:pb-24 max-w-6xl mx-auto">
         <FadeIn>
           <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-4">
@@ -50,14 +60,22 @@ export default function MetaAdsPage() {
             Facebook and Instagram campaigns that live in git. Typed objectives, rich targeting, version-controlled creatives.
           </p>
         </FadeIn>
-        <CodeToResult code={heroCode} label="produces this ad" delay={150}>
+        <CodeToResult code={heroCode} label="produces these ads" delay={150}>
           <div className="grid md:grid-cols-2 gap-5 items-start">
-            <MetaAdPreview
-              pageName="Arcflow"
-              primaryText="Connect 200+ apps. Build workflows visually. No code needed."
-              headline="Automate Any Workflow"
-              cta="Learn More"
-            />
+            <div className="space-y-3">
+              <MetaAdPreview
+                pageName="Arcflow"
+                primaryText="Arcflow connects your tools. No code. Deploy in minutes."
+                headline="Automate Your Entire Workflow with AI"
+                cta="Learn More"
+              />
+              <MetaAdPreview
+                pageName="Arcflow"
+                primaryText="The workflow automation platform ops teams swear by."
+                headline="Join 12,000+ Teams Using Arcflow"
+                cta="Learn More"
+              />
+            </div>
             <CampaignTree tree={metaTree} />
           </div>
         </CodeToResult>

@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     "Search campaigns without the gRPC nightmares. Type-safe builders, branded types, and dependency-ordered mutations.",
 };
 
+// Matches the heroCode snippet exactly
 const fullTree: TreeNode = {
   label: "Brand - Arcflow",
   type: "campaign",
@@ -29,14 +30,11 @@ const fullTree: TreeNode = {
       label: "core-keywords",
       type: "adgroup",
       children: [
-        { label: "workflow automation [exact]", type: "keyword" },
-        { label: "ai automation tool [exact]", type: "keyword" },
-        { label: "automate workflows [broad]", type: "keyword" },
-        { label: "RSA → 3 headlines, 2 descriptions", type: "ad" },
+        { label: "arcflow [exact]", type: "keyword" },
+        { label: "ai workflow automation [phrase]", type: "keyword" },
+        { label: "RSA → 3 headlines, 1 description", type: "ad" },
       ],
     },
-    { label: "Sitelinks (3)", type: "extension" },
-    { label: "Callouts (3)", type: "extension" },
   ],
 };
 
@@ -57,14 +55,8 @@ export default function GoogleAdsPage() {
           <div className="grid md:grid-cols-2 gap-5">
             <GoogleAdPreview
               headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
-              descriptions={["Connect 200+ apps. Ship workflows in minutes.", "Teams save 12 hrs/week on average."]}
+              descriptions={["Connect 200+ apps. Ship workflows in minutes."]}
               url="https://arcflow.dev"
-              sitelinks={[
-                { title: "See Pricing" },
-                { title: "Integrations" },
-                { title: "Templates" },
-              ]}
-              callouts={["No Credit Card", "SOC 2 Certified", "99.9% Uptime"]}
             />
             <CampaignTree tree={fullTree} />
           </div>
