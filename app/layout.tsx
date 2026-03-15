@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces, Space_Mono } from "next/font/google";
 import "./globals.css";
+import { Nav } from "@/components/Nav";
+import { Footer } from "@/components/Footer";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -50,7 +52,11 @@ export default function RootLayout({
       lang="en"
       className={`${fraunces.variable} ${dmSans.variable} ${spaceMono.variable}`}
     >
-      <body className="bg-bg text-text font-body antialiased">{children}</body>
+      <body className="bg-bg text-text font-body antialiased">
+        <Nav />
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }
