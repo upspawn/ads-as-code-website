@@ -29,7 +29,7 @@ const colorMap = {
 export function DiffOutput({ content }: { content: string }) {
   const lines = parseDiffLines(content);
   const [visibleCount, setVisibleCount] = useState(0);
-  const ref = useRef<HTMLPreElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const hasAnimated = useRef(false);
 
   useEffect(() => {
@@ -52,19 +52,32 @@ export function DiffOutput({ content }: { content: string }) {
   }, [lines.length]);
 
   return (
-    <pre
+    <div
       ref={ref}
-      className="font-mono text-sm md:text-base leading-relaxed rounded-xl border border-code-border bg-code-bg p-5 md:p-8 overflow-x-auto"
+      className="rounded-2xl border border-code-border bg-code-bg shadow-sm overflow-hidden"
     >
-      {lines.map((line, i) => (
-        <div
-          key={i}
-          className={`${colorMap[line.type]} transition-opacity duration-300`}
-          style={{ opacity: i < visibleCount ? 1 : 0 }}
-        >
-          {line.text || "\u00A0"}
+      {/* Title bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-code-border bg-[#EFEEE8]">
+        <div className="flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#E5E4DE]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#E5E4DE]" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#E5E4DE]" />
         </div>
-      ))}
-    </pre>
+        <span className="text-xs text-text-muted font-mono">Terminal</span>
+      </div>
+
+      {/* Diff body */}
+      <pre className="font-mono text-sm md:text-base leading-relaxed p-5 md:p-6 overflow-x-auto">
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            className={`${colorMap[line.type]} transition-opacity duration-300`}
+            style={{ opacity: i < visibleCount ? 1 : 0 }}
+          >
+            {line.text || "\u00A0"}
+          </div>
+        ))}
+      </pre>
+    </div>
   );
 }
