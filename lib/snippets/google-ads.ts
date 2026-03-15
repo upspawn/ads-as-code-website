@@ -3,16 +3,16 @@
 export const heroCode = `import { google, daily, exact, phrase,
   headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-export default google.search('Brand - Arcflow', {
+export default google.search('Brand - Acme', {
   budget: daily(45),
   bidding: 'maximize-clicks',
 })
   .group('core-keywords', {
-    keywords: [...exact('arcflow'), ...phrase('ai workflow automation')],
+    keywords: [...exact('acme'), ...phrase('ai workflow automation')],
     ad: rsa(
       headlines('Automate Any Workflow', 'AI-Powered', 'Free Trial'),
       descriptions('Connect 200+ apps. Ship workflows in minutes.'),
-      url('https://arcflow.dev'),
+      url('https://acme.dev'),
     ),
   })`;
 
@@ -30,23 +30,23 @@ export const howSteps = [
     code: `import { google, daily, exact, phrase, broad,
   headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-google.search('EU Search - Arcflow', { budget: daily(80), bidding: 'maximize-conversions' })
+google.search('EU Search - Acme', { budget: daily(80), bidding: 'maximize-conversions' })
   .group('DE — Core', {
     locale: { language: 'de', geo: ['DE', 'AT', 'CH'] },
-    keywords: [...exact('arcflow'), ...phrase('ki workflow automatisierung')],
+    keywords: [...exact('acme'), ...phrase('ki workflow automatisierung')],
     ad: rsa(
-      headlines('Arcflow — KI-Automatisierung', 'Workflows automatisch erstellen'),
+      headlines('Acme — KI-Automatisierung', 'Workflows automatisch erstellen'),
       descriptions('Automatisieren Sie jeden Workflow mit KI. Kein Code nötig.'),
-      url('https://arcflow.dev/de/'),
+      url('https://acme.dev/de/'),
     ),
   })
   .group('EN — Core', {
     locale: { language: 'en', geo: ['GB', 'IE'] },
-    keywords: [...exact('arcflow'), ...broad('workflow automation tool')],
+    keywords: [...exact('acme'), ...broad('workflow automation tool')],
     ad: rsa(
       headlines('Automate Any Workflow', '500+ Integrations, Zero Code'),
       descriptions('Build workflows with AI. Deploy in minutes.'),
-      url('https://arcflow.dev/'),
+      url('https://acme.dev/'),
     ),
   })`,
     lang: "typescript" as const,
@@ -57,11 +57,11 @@ google.search('EU Search - Arcflow', { budget: daily(80), bidding: 'maximize-con
       "Add sitelinks and callout extensions to your campaign. Extensions are versioned alongside your campaign definitions and diffed independently.",
     code: `import { google, daily, exact, phrase, link, sitelinks, callouts } from '@upspawn/ads'
 
-google.search('Brand - Arcflow', { budget: daily(45), bidding: 'maximize-clicks' })
+google.search('Brand - Acme', { budget: daily(45), bidding: 'maximize-clicks' })
   .sitelinks(sitelinks([
-    link('Pricing',      'https://arcflow.dev/pricing'),
-    link('Integrations', 'https://arcflow.dev/integrations'),
-    link('Templates',    'https://arcflow.dev/templates'),
+    link('Pricing',      'https://acme.dev/pricing'),
+    link('Integrations', 'https://acme.dev/integrations'),
+    link('Templates',    'https://acme.dev/templates'),
   ]))
   .callouts(callouts(['No-Code Required', 'Free 14-Day Trial', 'SOC 2 Certified']))
   .group('core-keywords', { /* ... */ })`,

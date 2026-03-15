@@ -7,7 +7,7 @@ import type { TreeNode } from "./CampaignTree";
 import { defineStep, planStep, applyStep } from "@/lib/snippets/homepage";
 
 const campaignTree: TreeNode = {
-  label: "Brand - Arcflow",
+  label: "Brand - Acme",
   type: "campaign",
   children: [
     {
@@ -51,7 +51,7 @@ export function HomeHowItWorks() {
               <GoogleAdPreview
                 headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
                 descriptions={["Connect 200+ apps. Ship workflows in minutes."]}
-                url="https://arcflow.dev"
+                url="https://acme.dev"
               />
               <CampaignTree tree={campaignTree} />
             </div>

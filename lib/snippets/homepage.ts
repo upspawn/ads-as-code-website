@@ -28,7 +28,7 @@ export const featureCards = [
 export const defineStep = `import { google, daily, exact, broad,
   headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-export default google.search('Brand - Arcflow', {
+export default google.search('Brand - Acme', {
   budget: daily(20),
   bidding: 'maximize-clicks',
 })
@@ -37,22 +37,22 @@ export default google.search('Brand - Arcflow', {
     ad: rsa(
       headlines('Automate Any Workflow', 'AI-Powered', 'Free Trial'),
       descriptions('Connect 200+ apps. Ship workflows in minutes.'),
-      url('https://arcflow.dev'),
+      url('https://acme.dev'),
     ),
   })`;
 
 export const planStep = `$ ads plan
 
-+ campaign/brand-arcflow                    create
-+ campaign/brand-arcflow/core-keywords      create
-+ campaign/brand-arcflow/core-keywords/rsa  create
++ campaign/brand-acme                    create
++ campaign/brand-acme/core-keywords      create
++ campaign/brand-acme/core-keywords/rsa  create
 
   3 to create. Run ads apply to execute.`;
 
 export const applyStep = `$ ads apply
 
-✓ Created campaign/brand-arcflow
-✓ Created campaign/brand-arcflow/core-keywords
+✓ Created campaign/brand-acme
+✓ Created campaign/brand-acme/core-keywords
 ✓ Created RSA ad
 
   3 resources created.`;

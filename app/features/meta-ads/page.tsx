@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 // Matches the heroCode snippet exactly
 const metaTree: TreeNode = {
-  label: "Arcflow — Traffic — AI Enthusiasts",
+  label: "Acme — Traffic — AI Enthusiasts",
   type: "campaign",
   children: [
     {
@@ -64,15 +64,15 @@ export default function MetaAdsPage() {
           <div className="grid md:grid-cols-2 gap-5 items-start">
             <div className="space-y-3">
               <MetaAdPreview
-                pageName="Arcflow"
-                primaryText="Arcflow connects your tools. No code. Deploy in minutes."
+                pageName="Acme"
+                primaryText="Acme connects your tools. No code. Deploy in minutes."
                 headline="Automate Your Entire Workflow with AI"
                 cta="Learn More"
               />
               <MetaAdPreview
-                pageName="Arcflow"
+                pageName="Acme"
                 primaryText="The workflow automation platform ops teams swear by."
-                headline="Join 12,000+ Teams Using Arcflow"
+                headline="Join 12,000+ Teams Using Acme"
                 cta="Learn More"
               />
             </div>

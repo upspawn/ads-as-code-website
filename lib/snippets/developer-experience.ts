@@ -3,7 +3,7 @@
 export const heroCode = `import { google, daily, exact, phrase,
   headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-google.search('Brand - Arcflow', {
+google.search('Brand - Acme', {
   budget: daily(40),
   //           ^ number (dollars, not micros)
   bidding: 'maximize-clicks',
@@ -11,14 +11,14 @@ google.search('Brand - Arcflow', {
 })
   .group('Core Keywords', {
     keywords: [
-      ...exact('arcflow'),       // [arcflow]
-      ...phrase('arcflow app'),  // "arcflow app"
+      ...exact('acme'),       // [acme]
+      ...phrase('acme app'),  // "acme app"
     ],
     ad: rsa(
-      headlines('Arcflow — AI Workflow Automation', 'Automate Your Workflows'),
+      headlines('Acme — AI Workflow Automation', 'Automate Your Workflows'),
       //  ^ Headline — max 30 chars, enforced at build time
       descriptions('Build automations in minutes. No code required.'),
-      url('https://arcflow.dev'),
+      url('https://acme.dev'),
     ),
   })`;
 
@@ -36,7 +36,7 @@ export const howSteps = [
       "Every property, every option, every helper is fully typed. Your editor knows what `bidding` accepts, how many headlines an RSA allows, and what the valid match types are — before you run a single command.",
     code: `// TypeScript catches this before it reaches the API:
 
-google.search('Arcflow Brand', {
+google.search('Acme Brand', {
   bidding: 'maximize-revenue',
   //        ^^^^^^^^^^^^^^^^^ Error: not assignable to
   //        '"maximize-clicks" | "maximize-conversions" | "target-cpa"'
@@ -55,7 +55,7 @@ headlines('This headline is way too long to fit in a Google ad')
 const ad = rsa(
   headlines(['Short headline']),
   descriptions(['My description text']),
-  url('https://arcflow.dev'),
+  url('https://acme.dev'),
 )
 
 rsa(
@@ -75,12 +75,12 @@ rsa(
   keywords: [
     ...phrase('notion alternative'),
     ...phrase('linear alternative'),
-    ...exact('arcflow vs notion'),
+    ...exact('acme vs notion'),
   ],
   ad: rsa(
     headlines('Better Than Notion for Teams', 'The Automation Tool Notion Lacks'),
     descriptions('Automate workflows Notion can\'t touch. Try free.'),
-    url('https://arcflow.dev/compare'),
+    url('https://acme.dev/compare'),
   ),
 })`,
     lang: "typescript" as const,

@@ -23,14 +23,14 @@ export const metadata: Metadata = {
 
 // Matches the heroCode snippet exactly
 const fullTree: TreeNode = {
-  label: "Brand - Arcflow",
+  label: "Brand - Acme",
   type: "campaign",
   children: [
     {
       label: "core-keywords",
       type: "adgroup",
       children: [
-        { label: "arcflow [exact]", type: "keyword" },
+        { label: "acme [exact]", type: "keyword" },
         { label: "ai workflow automation [phrase]", type: "keyword" },
         { label: "RSA → 3 headlines, 1 description", type: "ad" },
       ],
@@ -56,7 +56,7 @@ export default function GoogleAdsPage() {
             <GoogleAdPreview
               headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
               descriptions={["Connect 200+ apps. Ship workflows in minutes."]}
-              url="https://arcflow.dev"
+              url="https://acme.dev"
             />
             <CampaignTree tree={fullTree} />
           </div>

@@ -1,7 +1,7 @@
 // AI Copy Generation feature page content
 
 export const heroCode = `$ ads generate --campaign campaigns/brand-search.ts \\
-    --brief "Arcflow: AI workflow automation for ops teams.
+    --brief "Acme: AI workflow automation for ops teams.
              Zero code. 500+ integrations. Ship in minutes." \\
     --headlines 15 --descriptions 4
 
@@ -13,7 +13,7 @@ export const heroCode = `$ ads generate --campaign campaigns/brand-search.ts \\
   … 11 more
 
   Descriptions (4/4):
-  ✓  Arcflow automates the work between your tools. Triggers, logic, 500+ integrations. No code.
+  ✓  Acme automates the work between your tools. Triggers, logic, 500+ integrations. No code.
 
   Written to campaigns/brand-search.ts. Run \`ads plan\` to review.`;
 
@@ -30,7 +30,7 @@ export const howSteps = [
     caption:
       "Pass a product brief and `ads generate` writes up to 15 headlines and 4 descriptions for any ad group in your campaign. Copy is written directly into your TypeScript campaign file, ready to review and apply.",
     code: `$ ads generate --campaign campaigns/brand-search.ts --ad-group "Core KW" \\
-    --brief "Arcflow: zero-code workflow automation. Key benefits: 500+ integrations,
+    --brief "Acme: zero-code workflow automation. Key benefits: 500+ integrations,
              deploys in minutes. Tone: professional, outcome-focused."
 
   Headlines:
@@ -52,7 +52,7 @@ export const howSteps = [
   Analyzing: retarget / Site Visitors / Trial Nudge
 
   ✓  Still Thinking It Over?           score 88  (keep)
-  ✗  Arcflow Workflow Automation Tool  score 41  (rewrite)
+  ✗  Acme Workflow Automation Tool  score 41  (rewrite)
   ✗  Click Here to Get Started        score 38  (rewrite)
 
   Rewrites:

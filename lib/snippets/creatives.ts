@@ -3,7 +3,7 @@
 export const heroCode = `import { meta, daily, age, geo, interests,
   image, video, carousel } from '@upspawn/ads'
 
-meta.traffic('Arcflow — Product Tour', { budget: daily(80) })
+meta.traffic('Acme — Product Tour', { budget: daily(80) })
   .adSet('Cold — US SaaS Buyers', {
     targeting: [age(28, 55), geo(['US']), interests(['SaaS', 'Workflow Automation'])],
     placements: ['feed', 'reels', 'stories'],
@@ -11,7 +11,7 @@ meta.traffic('Arcflow — Product Tour', { budget: daily(80) })
       {
         headline: 'Your Entire Workflow, Automated',
         creative: video('./assets/product-tour-30s.mp4', { thumbnail: './assets/tour-thumb.jpg' }),
-        url: 'https://arcflow.dev/tour',
+        url: 'https://acme.dev/tour',
       },
       {
         headline: 'Everything Your Team Needs',
@@ -38,7 +38,7 @@ export const howSteps = [
       "Point `image()` or `video()` at a local file path. When you run `ads apply`, the SDK uploads the asset to the platform and wires up the reference. No manual uploading.",
     code: `import { meta, daily, geo, image, video } from '@upspawn/ads'
 
-meta.conversions('Arcflow — Free Trial', {
+meta.conversions('Acme — Free Trial', {
   budget: daily(100), pixel: '1234567890', event: 'StartTrial',
 })
   .adSet('Retarget — Site Visitors', {
@@ -67,17 +67,17 @@ creative: carousel([
   {
     image: './assets/trigger-card.jpg',
     headline: 'Smart Triggers',
-    url: 'https://arcflow.dev/features/triggers',
+    url: 'https://acme.dev/features/triggers',
   },
   {
     image: './assets/logic-card.jpg',
     headline: 'Branching Logic',
-    url: 'https://arcflow.dev/features/logic',
+    url: 'https://acme.dev/features/logic',
   },
   {
     image: './assets/integrations-card.jpg',
     headline: '500+ Integrations',
-    url: 'https://arcflow.dev/integrations',
+    url: 'https://acme.dev/integrations',
   },
 ])`,
     lang: "typescript" as const,
@@ -88,13 +88,13 @@ creative: carousel([
       "Use `boostedPost()` to promote an existing Facebook or Instagram post. The SDK wraps it in a campaign definition, so the boost is version-controlled and reproducible.",
     code: `import { meta, daily, geo, boostedPost } from '@upspawn/ads'
 
-meta.traffic('Arcflow — Boost — Product Launch', { budget: daily(40) })
+meta.traffic('Acme — Boost — Product Launch', { budget: daily(40) })
   .adSet('Warm — Page Followers', {
     targeting: [geo(['US', 'CA', 'GB'])],
     audience: { retarget: 'page-followers' },
     ad: {
-      creative: boostedPost('https://www.facebook.com/arcflow/posts/123456789'),
-      url: 'https://arcflow.dev/blog/launch',
+      creative: boostedPost('https://www.facebook.com/acme/posts/123456789'),
+      url: 'https://acme.dev/blog/launch',
     },
   })`,
     lang: "typescript" as const,

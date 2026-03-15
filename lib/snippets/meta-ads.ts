@@ -2,7 +2,7 @@
 
 export const heroCode = `import { meta, daily, age, geo, interests, lookalike, image } from '@upspawn/ads'
 
-export default meta.traffic('Arcflow — Traffic — AI Enthusiasts', {
+export default meta.traffic('Acme — Traffic — AI Enthusiasts', {
   budget: daily(60),
 })
   .adSet('AI Ops — USA', {
@@ -10,19 +10,19 @@ export default meta.traffic('Arcflow — Traffic — AI Enthusiasts', {
     placements: ['feed', 'reels', 'stories'],
     ad: {
       headline: 'Automate Your Entire Workflow with AI',
-      body: 'Arcflow connects your tools. No code. Deploy in minutes.',
+      body: 'Acme connects your tools. No code. Deploy in minutes.',
       creative: image('./assets/hero-workflow.jpg'),
-      url: 'https://arcflow.dev/lp/ai-workflow',
+      url: 'https://acme.dev/lp/ai-workflow',
     },
   })
   .adSet('Lookalike — 1% Customers', {
     targeting: [geo(['US']), lookalike('customer-list-q1', 0.01)],
     placements: ['feed'],
     ad: {
-      headline: 'Join 12,000+ Teams Using Arcflow',
+      headline: 'Join 12,000+ Teams Using Acme',
       body: 'The workflow automation platform ops teams swear by.',
       creative: image('./assets/social-proof.jpg'),
-      url: 'https://arcflow.dev/lp/social-proof',
+      url: 'https://acme.dev/lp/social-proof',
     },
   })`;
 
@@ -40,7 +40,7 @@ export const howSteps = [
     code: `import { meta, daily, age, geo, interests, image } from '@upspawn/ads'
 
 // Traffic
-meta.traffic('Arcflow — Blog Readers', { budget: daily(30) })
+meta.traffic('Acme — Blog Readers', { budget: daily(30) })
   .adSet('Cold — US Tech', {
     targeting: [age(25, 50), geo(['US']), interests(['Productivity', 'SaaS'])],
     placements: ['feed', 'reels'],
@@ -48,7 +48,7 @@ meta.traffic('Arcflow — Blog Readers', { budget: daily(30) })
   })
 
 // Conversions
-meta.conversions('Arcflow — Free Trial', {
+meta.conversions('Acme — Free Trial', {
   budget: daily(120), pixel: '1234567890', event: 'StartTrial',
 })
   .adSet('Retarget — Site Visitors', {
@@ -64,7 +64,7 @@ meta.conversions('Arcflow — Free Trial', {
       "Mix interest targeting, lookalike audiences, custom audience retargeting, and explicit exclusions. Control placements per ad set.",
     code: `import { meta, daily, age, geo, interests, lookalike, image } from '@upspawn/ads'
 
-meta.traffic('Arcflow — Prospecting', { budget: daily(50) })
+meta.traffic('Acme — Prospecting', { budget: daily(50) })
   .adSet('Interest — SaaS Founders', {
     targeting: [
       age(25, 50), geo(['US', 'CA', 'GB']),

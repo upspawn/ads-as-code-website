@@ -31,7 +31,7 @@ export const howSteps = [
     title: "Plan on PR, apply on merge",
     caption:
       "Add ads to your CI/CD pipeline. When a campaign file changes, `ads plan --ci` posts the diff as a PR comment. Merging to main runs `ads apply`. The same workflow you use to ship software, now for ads.",
-    code: `## Arcflow Ads — Planned Changes
+    code: `## Acme Ads — Planned Changes
 
 + campaign/q2-launch                      create
 + campaign/q2-launch/brand-kw             create
@@ -49,7 +49,7 @@ export const howSteps = [
     code: `import { fal } from '@fal-ai/client'
 
 const images = await fal.subscribe('fal-ai/flux/dev', {
-  input: { prompt: 'Arcflow SaaS UI, dark mode, product shot', num_images: 4 },
+  input: { prompt: 'Acme SaaS UI, dark mode, product shot', num_images: 4 },
 })
 
 await updateCampaignCreatives('q2-launch', images.map(i => i.url))

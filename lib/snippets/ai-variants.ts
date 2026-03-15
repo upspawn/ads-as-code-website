@@ -29,12 +29,12 @@ export const howSteps = [
     --locales de,fr,es,nl --translate
 
   brand-search--de.ts
-    ~ name       → "Arcflow — Brand Search — DE"
+    ~ name       → "Acme — Brand Search — DE"
     ~ geo        ["US"] → ["DE", "AT", "CH"]
     ~ headlines  15 headlines translated to German
 
   brand-search--fr.ts
-    ~ name       → "Arcflow — Brand Search — FR"
+    ~ name       → "Acme — Brand Search — FR"
     ~ geo        ["US"] → ["FR", "BE", "CH"]
     ~ headlines  15 headlines translated to French
 
@@ -69,17 +69,17 @@ export const howSteps = [
 
 import { google, daily, exact, phrase, headlines, descriptions, rsa, url } from '@upspawn/ads'
 
-export default google.search('Arcflow — Brand Search — DE', {
+export default google.search('Acme — Brand Search — DE', {
   budget: daily(30),  // ← adjusted for DE market
   bidding: 'maximize-clicks',
 })
   .group('Core KW', {
     locale: { language: 'de', geo: ['DE', 'AT', 'CH'] },
-    keywords: [...exact('arcflow'), ...phrase('workflow automatisierung')],
+    keywords: [...exact('acme'), ...phrase('workflow automatisierung')],
     ad: rsa(
       headlines('Workflows mit KI automatisieren', 'Kein Code nötig', '500+ Integrationen'),
-      descriptions('Arcflow verbindet Ihre Tools. Sofort einsatzbereit.'),
-      url('https://arcflow.dev/de/'),
+      descriptions('Acme verbindet Ihre Tools. Sofort einsatzbereit.'),
+      url('https://acme.dev/de/'),
     ),
   })`,
     lang: "typescript" as const,
