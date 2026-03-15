@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { FeatureHero } from "@/components/FeatureHero";
 import { FeatureProblem } from "@/components/FeatureProblem";
 import { FeatureHow } from "@/components/FeatureHow";
 import { FeatureCapabilities } from "@/components/FeatureCapabilities";
 import { FeatureCTA } from "@/components/FeatureCTA";
+import { CodeToResult } from "@/components/CodeToResult";
 import { GoogleAdPreview } from "@/components/GoogleAdPreview";
 import { CampaignTree } from "@/components/CampaignTree";
 import type { TreeNode } from "@/components/CampaignTree";
@@ -43,37 +43,32 @@ const fullTree: TreeNode = {
 export default function GoogleAdsPage() {
   return (
     <>
-      <FeatureHero
-        title="Google Ads"
-        subtitle="Search campaigns without the gRPC nightmares. Type-safe builders, human-readable enums."
-        code={heroCode}
-        lang="typescript"
-      />
-
-      {/* Visual: what the code produces */}
-      <section className="px-6 md:px-12 pb-16 max-w-6xl mx-auto">
+      {/* Hero as CodeToResult */}
+      <section className="px-6 md:px-12 pt-12 md:pt-20 pb-16 md:pb-24 max-w-6xl mx-auto">
         <FadeIn>
-          <p className="text-text-muted text-sm mb-4 font-mono">This code produces →</p>
+          <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-4">
+            Google Ads
+          </h1>
+          <p className="text-text-muted text-lg md:text-xl max-w-2xl mb-10 leading-relaxed">
+            Search campaigns without the gRPC nightmares. Type-safe builders, human-readable enums.
+          </p>
         </FadeIn>
-        <div className="grid md:grid-cols-2 gap-5">
-          <GoogleAdPreview
-            headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
-            descriptions={["Connect 200+ apps. Ship workflows in minutes.", "Teams save 12 hrs/week on average."]}
-            url="https://arcflow.dev"
-            sitelinks={[
-              { title: "See Pricing", url: "#" },
-              { title: "Integrations", url: "#" },
-              { title: "Templates", url: "#" },
-            ]}
-            callouts={["No Credit Card", "SOC 2 Certified", "99.9% Uptime"]}
-            delay={100}
-          />
-          <CampaignTree
-            tree={fullTree}
-            title="Campaign Structure"
-            delay={200}
-          />
-        </div>
+        <CodeToResult code={heroCode} label="produces this ad" delay={150}>
+          <div className="grid md:grid-cols-2 gap-5">
+            <GoogleAdPreview
+              headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
+              descriptions={["Connect 200+ apps. Ship workflows in minutes.", "Teams save 12 hrs/week on average."]}
+              url="https://arcflow.dev"
+              sitelinks={[
+                { title: "See Pricing" },
+                { title: "Integrations" },
+                { title: "Templates" },
+              ]}
+              callouts={["No Credit Card", "SOC 2 Certified", "99.9% Uptime"]}
+            />
+            <CampaignTree tree={fullTree} />
+          </div>
+        </CodeToResult>
       </section>
 
       <FeatureProblem lines={problemLines} />

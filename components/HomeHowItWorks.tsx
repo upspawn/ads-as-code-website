@@ -1,5 +1,6 @@
 import { FadeIn } from "./FadeIn";
 import { CodeBlock } from "./CodeBlock";
+import { CodeToResult } from "./CodeToResult";
 import { GoogleAdPreview } from "./GoogleAdPreview";
 import { CampaignTree } from "./CampaignTree";
 import type { TreeNode } from "./CampaignTree";
@@ -13,9 +14,9 @@ const campaignTree: TreeNode = {
       label: "core-keywords",
       type: "adgroup",
       children: [
-        { label: "workflow automation", type: "keyword" },
-        { label: "ai automation", type: "keyword" },
-        { label: "RSA → 3 headlines, 1 desc", type: "ad" },
+        { label: "workflow automation [exact]", type: "keyword" },
+        { label: "ai automation [broad]", type: "keyword" },
+        { label: "RSA → 3 headlines, 1 description", type: "ad" },
       ],
     },
   ],
@@ -33,67 +34,61 @@ export function HomeHowItWorks() {
         </p>
       </FadeIn>
 
-      {/* Step 01: Define — code + ad preview */}
-      <div className="mb-16">
-        <FadeIn>
-          <div className="flex items-baseline gap-3 mb-1">
-            <span className="font-mono text-accent text-sm font-bold">01</span>
-            <h3 className="font-heading text-xl font-bold">Define</h3>
-          </div>
-          <p className="text-text-muted text-base leading-relaxed mb-4">
-            Campaigns are TypeScript. Type-safe, reviewable, version-controlled.
-          </p>
-        </FadeIn>
-        <div className="grid lg:grid-cols-[1fr,380px] gap-5 items-start">
+      <div className="grid gap-14">
+        {/* Step 01: Define — code → ad preview + tree */}
+        <div>
           <FadeIn>
-            <CodeBlock code={defineStep} lang="typescript" />
+            <div className="flex items-baseline gap-3 mb-1">
+              <span className="font-mono text-accent text-sm font-bold">01</span>
+              <h3 className="font-heading text-xl font-bold">Define</h3>
+            </div>
+            <p className="text-text-muted text-base leading-relaxed mb-4">
+              Campaigns are TypeScript. Type-safe, reviewable, version-controlled.
+            </p>
           </FadeIn>
-          <div className="space-y-4">
-            <GoogleAdPreview
-              headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
-              descriptions={["Connect 200+ apps. Ship workflows in minutes."]}
-              url="https://arcflow.dev"
-              delay={200}
-            />
-            <CampaignTree
-              tree={campaignTree}
-              title="Campaign Structure"
-              delay={300}
-            />
-          </div>
+          <CodeToResult code={defineStep} lang="typescript" label="produces this ad">
+            <div className="grid md:grid-cols-2 gap-5">
+              <GoogleAdPreview
+                headlines={["Automate Any Workflow", "AI-Powered", "Free Trial"]}
+                descriptions={["Connect 200+ apps. Ship workflows in minutes."]}
+                url="https://arcflow.dev"
+              />
+              <CampaignTree tree={campaignTree} />
+            </div>
+          </CodeToResult>
         </div>
-      </div>
 
-      {/* Step 02: Plan */}
-      <div className="mb-16">
-        <FadeIn>
-          <div className="flex items-baseline gap-3 mb-1">
-            <span className="font-mono text-accent text-sm font-bold">02</span>
-            <h3 className="font-heading text-xl font-bold">Plan</h3>
-          </div>
-          <p className="text-text-muted text-base leading-relaxed mb-4">
-            Preview every change before it touches your ad account.
-          </p>
-        </FadeIn>
-        <FadeIn delay={100}>
-          <CodeBlock code={planStep} lang="shellscript" />
-        </FadeIn>
-      </div>
+        {/* Step 02: Plan */}
+        <div>
+          <FadeIn>
+            <div className="flex items-baseline gap-3 mb-1">
+              <span className="font-mono text-accent text-sm font-bold">02</span>
+              <h3 className="font-heading text-xl font-bold">Plan</h3>
+            </div>
+            <p className="text-text-muted text-base leading-relaxed mb-4">
+              Preview every change before it touches your ad account.
+            </p>
+          </FadeIn>
+          <FadeIn delay={100}>
+            <CodeBlock code={planStep} lang="shellscript" />
+          </FadeIn>
+        </div>
 
-      {/* Step 03: Apply */}
-      <div>
-        <FadeIn>
-          <div className="flex items-baseline gap-3 mb-1">
-            <span className="font-mono text-accent text-sm font-bold">03</span>
-            <h3 className="font-heading text-xl font-bold">Apply</h3>
-          </div>
-          <p className="text-text-muted text-base leading-relaxed mb-4">
-            Execute with confidence. Rollback with git revert.
-          </p>
-        </FadeIn>
-        <FadeIn delay={100}>
-          <CodeBlock code={applyStep} lang="shellscript" />
-        </FadeIn>
+        {/* Step 03: Apply */}
+        <div>
+          <FadeIn>
+            <div className="flex items-baseline gap-3 mb-1">
+              <span className="font-mono text-accent text-sm font-bold">03</span>
+              <h3 className="font-heading text-xl font-bold">Apply</h3>
+            </div>
+            <p className="text-text-muted text-base leading-relaxed mb-4">
+              Execute with confidence. Rollback with git revert.
+            </p>
+          </FadeIn>
+          <FadeIn delay={100}>
+            <CodeBlock code={applyStep} lang="shellscript" />
+          </FadeIn>
+        </div>
       </div>
     </section>
   );

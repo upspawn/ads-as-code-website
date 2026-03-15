@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { FeatureHero } from "@/components/FeatureHero";
 import { FeatureProblem } from "@/components/FeatureProblem";
 import { FeatureHow } from "@/components/FeatureHow";
 import { FeatureCapabilities } from "@/components/FeatureCapabilities";
 import { FeatureCTA } from "@/components/FeatureCTA";
+import { CodeToResult } from "@/components/CodeToResult";
 import { MetaAdPreview } from "@/components/MetaAdPreview";
 import { CampaignTree } from "@/components/CampaignTree";
 import type { TreeNode } from "@/components/CampaignTree";
@@ -31,7 +31,7 @@ const metaTree: TreeNode = {
       children: [
         { label: "interests: SaaS, Automation", type: "keyword" },
         { label: "lookalike: purchasers 2%", type: "keyword" },
-        { label: "Image ad → hero-banner.jpg", type: "creative" },
+        { label: "Image → hero-banner.jpg", type: "creative" },
       ],
     },
   ],
@@ -40,34 +40,27 @@ const metaTree: TreeNode = {
 export default function MetaAdsPage() {
   return (
     <>
-      <FeatureHero
-        title="Meta Ads"
-        subtitle="Facebook and Instagram campaigns that live in git. Typed objectives, rich targeting, version-controlled creatives."
-        code={heroCode}
-        lang="typescript"
-      />
-
-      {/* Visual: what the code produces */}
-      <section className="px-6 md:px-12 pb-16 max-w-6xl mx-auto">
+      {/* Hero as CodeToResult */}
+      <section className="px-6 md:px-12 pt-12 md:pt-20 pb-16 md:pb-24 max-w-6xl mx-auto">
         <FadeIn>
-          <p className="text-text-muted text-sm mb-4 font-mono">This code produces →</p>
+          <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] mb-4">
+            Meta Ads
+          </h1>
+          <p className="text-text-muted text-lg md:text-xl max-w-2xl mb-10 leading-relaxed">
+            Facebook and Instagram campaigns that live in git. Typed objectives, rich targeting, version-controlled creatives.
+          </p>
         </FadeIn>
-        <div className="grid md:grid-cols-2 gap-5 items-start">
-          <MetaAdPreview
-            pageName="Arcflow"
-            primaryText="Connect 200+ apps. Build workflows visually. No code needed. Start your free trial today."
-            headline="Automate Any Workflow"
-            description="Connect Slack, Notion, Salesforce — AI handles the rest."
-            cta="Learn More"
-            imageAlt="hero-banner.jpg"
-            delay={100}
-          />
-          <CampaignTree
-            tree={metaTree}
-            title="Campaign Structure"
-            delay={200}
-          />
-        </div>
+        <CodeToResult code={heroCode} label="produces this ad" delay={150}>
+          <div className="grid md:grid-cols-2 gap-5 items-start">
+            <MetaAdPreview
+              pageName="Arcflow"
+              primaryText="Connect 200+ apps. Build workflows visually. No code needed."
+              headline="Automate Any Workflow"
+              cta="Learn More"
+            />
+            <CampaignTree tree={metaTree} />
+          </div>
+        </CodeToResult>
       </section>
 
       <FeatureProblem lines={problemLines} />

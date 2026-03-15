@@ -1,48 +1,32 @@
-import { FadeIn } from "./FadeIn";
-
 type TreeNode = {
   label: string;
   type: "campaign" | "adgroup" | "keyword" | "ad" | "extension" | "adset" | "creative";
   children?: TreeNode[];
 };
 
-const typeStyles: Record<string, { bg: string; text: string; border: string }> = {
-  campaign:  { bg: "bg-accent/8",     text: "text-accent",     border: "border-accent/20" },
-  adgroup:   { bg: "bg-[#2563EB]/8",  text: "text-[#2563EB]",  border: "border-[#2563EB]/20" },
-  adset:     { bg: "bg-[#2563EB]/8",  text: "text-[#2563EB]",  border: "border-[#2563EB]/20" },
-  keyword:   { bg: "bg-[#16a34a]/8",  text: "text-[#16a34a]",  border: "border-[#16a34a]/20" },
-  ad:        { bg: "bg-[#9333EA]/8",  text: "text-[#9333EA]",  border: "border-[#9333EA]/20" },
-  creative:  { bg: "bg-[#9333EA]/8",  text: "text-[#9333EA]",  border: "border-[#9333EA]/20" },
-  extension: { bg: "bg-[#ca8a04]/8",  text: "text-[#ca8a04]",  border: "border-[#ca8a04]/20" },
-};
-
-const typeLabels: Record<string, string> = {
-  campaign: "Campaign",
-  adgroup: "Ad Group",
-  adset: "Ad Set",
-  keyword: "Keyword",
-  ad: "RSA Ad",
-  creative: "Creative",
-  extension: "Extension",
+const typeColors: Record<string, string> = {
+  campaign:  "text-accent",
+  adgroup:   "text-[#2563EB]",
+  adset:     "text-[#2563EB]",
+  keyword:   "text-[#16a34a]",
+  ad:        "text-[#9333EA]",
+  creative:  "text-[#9333EA]",
+  extension: "text-[#ca8a04]",
 };
 
 function TreeNodeRow({ node, depth = 0, isLast = false }: { node: TreeNode; depth?: number; isLast?: boolean }) {
-  const style = typeStyles[node.type] || typeStyles.campaign;
+  const color = typeColors[node.type] || "text-text";
 
   return (
     <>
-      <div className="flex items-center gap-2" style={{ paddingLeft: depth * 24 }}>
+      <div className="flex items-center font-mono text-[13px] leading-6">
+        {/* Indentation guides */}
         {depth > 0 && (
-          <div className="text-code-border text-xs font-mono w-4 text-center">
-            {isLast ? "└" : "├"}
-          </div>
-        )}
-        <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${style.bg} ${style.border}`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wider ${style.text}`}>
-            {typeLabels[node.type] || node.type}
+          <span className="text-[#D4D0CC] select-none" style={{ paddingLeft: (depth - 1) * 16 }}>
+            {isLast ? "└─ " : "├─ "}
           </span>
-          <span className="text-sm text-text font-medium">{node.label}</span>
-        </div>
+        )}
+        <span className={`${color} font-medium`}>{node.label}</span>
       </div>
       {node.children?.map((child, i) => (
         <TreeNodeRow
@@ -56,26 +40,11 @@ function TreeNodeRow({ node, depth = 0, isLast = false }: { node: TreeNode; dept
   );
 }
 
-export function CampaignTree({
-  tree,
-  title,
-  delay = 0,
-}: {
-  tree: TreeNode;
-  title?: string;
-  delay?: number;
-}) {
+export function CampaignTree({ tree }: { tree: TreeNode }) {
   return (
-    <FadeIn delay={delay}>
-      <div className="rounded-2xl border border-code-border bg-white p-5 shadow-sm">
-        {title && (
-          <div className="text-xs text-text-muted mb-3 font-mono">{title}</div>
-        )}
-        <div className="space-y-1.5">
-          <TreeNodeRow node={tree} />
-        </div>
-      </div>
-    </FadeIn>
+    <div>
+      <TreeNodeRow node={tree} />
+    </div>
   );
 }
 
