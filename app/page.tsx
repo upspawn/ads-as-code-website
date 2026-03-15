@@ -4,6 +4,7 @@ import { Problem } from "@/components/Problem";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { CodeExample } from "@/components/CodeExample";
+import { CliReference } from "@/components/CliReference";
 
 export default function Home() {
   return (
@@ -14,6 +15,7 @@ export default function Home() {
       <HowItWorks />
       <Features />
       <CodeExample />
+      <CliReference />
     </main>
   );
 }
