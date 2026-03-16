@@ -1,0 +1,445 @@
+---
+title: Meta (Facebook/Instagram) Campaigns
+description: Build Meta ad campaigns with type-safe objectives, ad sets, and creatives.
+---
+
+Meta campaigns run across Facebook, Instagram, Messenger, and the Audience Network. The SDK's Meta builder is generic over **objective** — meaning TypeScript enforces which optimization goals are valid at compile time, preventing misconfigured campaigns before they ever reach the API.
+
+---
+
+## Builder pattern
+
+Every Meta campaign is created with an objective-specific factory, then ad sets are added by chaining `.adSet()`. Each call returns a new builder (immutable), so you can compose campaigns declaratively.
+
+```ts title="campaigns/meta-traffic.ts"
+import {
+  meta,
+  daily,
+  metaTargeting,
+  geo,
+  image,
+  lowestCost,
+} from '@upspawn/ads'
+
+export default meta.traffic('Traffic - US Visitors', {
+  budget: daily(20),
+  status: 'ACTIVE',
+})
+  .adSet(
+    'US - Interest Targeting',
+    {
+      targeting: metaTargeting(geo('US')),
+      optimization: 'LINK_CLICKS',
+      bidding: lowestCost(),
+      placements: 'automatic',
+    },
+    {
+      url: 'https://renamed.to',
+      cta: 'LEARN_MORE',
+      ads: [
+        image('./assets/hero.png', {
+          headline: 'Rename Files Instantly',
+          primaryText: 'Stop wasting hours organizing files manually. Let AI handle it.',
+        }),
+      ],
+    },
+  )
+```
+
+The `.adSet(name, config, content)` method takes three arguments:
+1. **name** — the ad set display name in Meta's interface
+2. **config** — targeting, optimization goal, bidding, placements, schedule
+3. **content** — the creative ads, shared URL, and shared CTA
+
+---
+
+## All 7 objectives
+
+Each factory method returns a `MetaCampaignBuilder<T>` typed to that objective. The TypeScript compiler uses this to reject invalid optimization goals at the `adSet()` level.
+
+```ts
+import { meta } from '@upspawn/ads'
+
+meta.traffic('Campaign Name', config)        // Drive clicks to a website
+meta.awareness('Campaign Name', config)      // Maximize reach and brand recall
+meta.engagement('Campaign Name', config)     // Post likes, shares, video views
+meta.leads('Campaign Name', config)          // Lead form completions
+meta.sales('Campaign Name', config)          // Purchases or conversion events
+meta.conversions('Campaign Name', config)    // Alias for meta.sales()
+meta.appPromotion('Campaign Name', config)   // App installs and in-app events
+```
+
+### Valid optimization goals per objective
+
+Each objective constrains which `optimization` values are allowed:
+
+| Objective | Valid optimization goals |
+|---|---|
+| `traffic` | `LINK_CLICKS`, `LANDING_PAGE_VIEWS`, `REACH`, `IMPRESSIONS` |
+| `awareness` | `REACH`, `AD_RECALL_LIFT`, `IMPRESSIONS`, `THRUPLAY` |
+| `engagement` | `POST_ENGAGEMENT`, `PAGE_LIKES`, `EVENT_RESPONSES`, `THRUPLAY`, `TWO_SECOND_CONTINUOUS_VIDEO_VIEWS` |
+| `leads` | `LEAD_GENERATION`, `OFFSITE_CONVERSIONS`, `QUALITY_LEAD` |
+| `sales` | `OFFSITE_CONVERSIONS`, `VALUE`, `CONVERSATIONS` |
+| `conversions` | `OFFSITE_CONVERSIONS`, `VALUE`, `CONVERSATIONS` |
+| `app-promotion` | `APP_INSTALLS`, `APP_EVENTS`, `VALUE` |
+
+Passing an invalid optimization goal for the objective is a TypeScript compile error — you'll catch misconfigurations before running `ads plan`.
+
+---
+
+## Campaign config
+
+The second argument to every factory is an optional `MetaCampaignConfig`:
+
+```ts
+meta.traffic('Campaign Name', {
+  budget: daily(30),         // campaign-level daily budget (can also be on ad sets)
+  spendCap: 500,             // total spend cap for the campaign lifetime
+  status: 'ACTIVE',          // 'ACTIVE' | 'PAUSED', default 'ACTIVE'
+  buyingType: 'AUCTION',     // 'AUCTION' | 'RESERVED', default 'AUCTION'
+  specialAdCategories: [],   // required for credit, housing, employment, political ads
+})
+```
+
+Budget can be set at either the campaign level (shared across all ad sets) or the ad set level (each ad set has its own budget). You cannot set both at the same time.
+
+---
+
+## Creative types
+
+### Image ad
+
+The most common format. Pass a file path and ad copy:
+
+```ts
+import { image } from '@upspawn/ads'
+
+image('./assets/hero.png', {
+  headline: 'Rename Files Instantly',
+  primaryText: 'Stop wasting hours organizing files manually. Let AI handle it.',
+  description: 'Free plan available',       // optional — shown below CTA in some placements
+  cta: 'SIGN_UP',
+  url: 'https://renamed.to/signup',
+  displayLink: 'renamed.to',               // optional short display URL
+})
+```
+
+The `url` and `cta` fields are optional on individual ads — if omitted, they fall back to the `url` and `cta` set on the `AdSetContent` object.
+
+### Video ad
+
+```ts
+import { video } from '@upspawn/ads'
+
+video('./assets/demo.mp4', {
+  headline: 'See renamed.to in Action',
+  primaryText: 'Watch how teams save 2 hours per week organizing files.',
+  thumbnail: './assets/demo-thumb.png',    // optional custom thumbnail
+  cta: 'WATCH_MORE',
+  url: 'https://renamed.to/demo',
+})
+```
+
+Videos are uploaded to Meta during `ads apply`. The SDK handles the multipart upload automatically.
+
+### Carousel ad
+
+Requires 2–10 cards. Each card has its own image, headline, and URL:
+
+```ts
+import { carousel } from '@upspawn/ads'
+
+carousel(
+  [
+    { image: './assets/step1.png', headline: 'Upload Files', url: 'https://renamed.to/upload' },
+    { image: './assets/step2.png', headline: 'Set Rules', url: 'https://renamed.to/rules' },
+    { image: './assets/step3.png', headline: 'Download', url: 'https://renamed.to/download' },
+  ],
+  {
+    primaryText: 'Rename your files in three simple steps.',
+    cta: 'LEARN_MORE',
+    endCard: 'website',   // 'website' shows a final card linking to your site, 'none' omits it
+  },
+)
+```
+
+### Boosted post
+
+Promote an existing Facebook page post as an ad. No ad copy needed — the post content is the creative:
+
+```ts
+import { boostedPost } from '@upspawn/ads'
+
+boostedPost('My Post Name')   // name is optional — for your reference only
+```
+
+---
+
+## Meta targeting
+
+`metaTargeting(...rules)` composes targeting rules into a `MetaTargeting` object. It requires at least one `geo()` rule.
+
+```ts
+import { metaTargeting, geo, age, audience, excludeAudience, interests } from '@upspawn/ads'
+
+metaTargeting(
+  geo('US', 'CA', 'GB'),              // required — at least one country
+  age(25, 55),                        // optional age range (13-65)
+  audience('Website Visitors 30d'),   // custom audience by name (resolved at plan time)
+  excludeAudience('Existing Customers'), // exclude an audience
+  ...interests('Construction', 'BIM'), // interest targeting (spread into rules)
+)
+```
+
+### Custom audiences
+
+Reference audiences by name (resolved to IDs at plan time) or by explicit ID:
+
+```ts
+import { audience, excludeAudience } from '@upspawn/ads'
+
+audience('Website Visitors 30d')          // looked up by name in your Meta account
+audience({ id: '23856789012345' })        // explicit ID — skips lookup
+
+excludeAudience('Existing Customers')     // exclude from targeting
+excludeAudience({ id: '23856789099999' })
+```
+
+Use `ads audiences` to list available custom audiences in your account.
+
+### Interest targeting
+
+```ts
+import { interests } from '@upspawn/ads'
+
+// By name — resolved via the bundled catalog or Meta Targeting Search API
+...interests('Construction', 'Architecture', 'Building Information Modeling')
+
+// By explicit ID — no API lookup needed
+...interests({ id: '6003370250981', name: 'Construction' })
+```
+
+Use `ads search interests "query"` to find valid interest names and IDs.
+
+### Lookalike audiences
+
+```ts
+import { lookalike, geo } from '@upspawn/ads'
+
+lookalike('Website Visitors 30d', {
+  geo: geo('US'),
+  percent: 1,   // top 1% of US users most similar to your source audience (1-10)
+})
+```
+
+### Advantage+ targeting
+
+Let Meta expand your audience automatically:
+
+```ts
+import { metaTargeting, geo } from '@upspawn/ads'
+
+metaTargeting(
+  geo('US'),
+  { _type: 'advantageAudience' },              // Advantage+ audience
+  { _type: 'advantageDetailedTargeting' },     // expand detailed targeting
+)
+```
+
+---
+
+## Placements
+
+### Automatic (recommended)
+
+Let Meta's algorithm distribute your ads across all available placements for the best results:
+
+```ts
+import { automatic } from '@upspawn/ads'
+
+placements: automatic()   // or just the string 'automatic'
+```
+
+### Manual
+
+Restrict delivery to specific platforms and positions:
+
+```ts
+import { manual } from '@upspawn/ads'
+
+// Platforms only (all available positions on those platforms)
+manual(['facebook', 'instagram'])
+
+// Platforms with flat position list
+manual(['facebook', 'instagram'], ['feed', 'story', 'reels'])
+
+// Per-platform position control (most granular)
+manual(['facebook', 'instagram'], {
+  facebookPositions: ['feed', 'story', 'reels'],
+  instagramPositions: ['stream', 'story', 'reels'],
+})
+```
+
+Available platforms: `'facebook'`, `'instagram'`, `'audience_network'`, `'messenger'`
+
+Common positions: `feed`, `story`, `reels`, `right_hand_column`, `marketplace`, `instagram_stream`, `instagram_story`, `instagram_reels`, `instagram_explore`, `messenger_inbox`
+
+---
+
+## Bidding
+
+```ts
+import { lowestCost, costCap, bidCap, minRoas } from '@upspawn/ads'
+
+lowestCost()      // No bid cap — Meta spends your full budget at lowest cost
+costCap(12)       // Meta targets an average cost per result of $12 or less
+bidCap(8)         // Meta never bids more than $8 in any single auction
+minRoas(2.5)      // Meta targets a minimum 2.5x return on ad spend
+```
+
+Start with `lowestCost()` during the learning phase. Once you have enough conversion data (~50 conversions per week), consider `costCap` or `minRoas` to enforce efficiency targets.
+
+---
+
+## Complete traffic campaign example
+
+```ts title="campaigns/meta-traffic-complete.ts"
+import {
+  meta,
+  daily,
+  metaTargeting,
+  geo,
+  age,
+  audience,
+  excludeAudience,
+  interests,
+  image,
+  lowestCost,
+  automatic,
+} from '@upspawn/ads'
+
+export default meta.traffic('Traffic - US Product', {
+  budget: daily(30),
+  status: 'ACTIVE',
+})
+  .adSet(
+    'Website Visitors - Retargeting',
+    {
+      targeting: metaTargeting(
+        geo('US', 'CA'),
+        age(25, 65),
+        audience('Website Visitors 30d'),
+        excludeAudience('Existing Customers'),
+      ),
+      optimization: 'LANDING_PAGE_VIEWS',
+      bidding: lowestCost(),
+      placements: automatic(),
+    },
+    {
+      url: 'https://renamed.to',
+      cta: 'SIGN_UP',
+      ads: [
+        image('./assets/retargeting-hero.png', {
+          headline: 'Still Looking for a File Renamer?',
+          primaryText: 'You visited renamed.to. Ready to try the free plan?',
+        }),
+        image('./assets/retargeting-social-proof.png', {
+          headline: '50,000 Teams Use renamed.to',
+          primaryText: 'Join teams that save hours every week on file organization.',
+        }),
+      ],
+    },
+  )
+  .adSet(
+    'Cold Audience - Interest Targeting',
+    {
+      targeting: metaTargeting(
+        geo('US'),
+        age(22, 55),
+        ...interests('File Management', 'Productivity Software', 'Software as a Service'),
+        excludeAudience('Website Visitors 30d'),
+      ),
+      optimization: 'LINK_CLICKS',
+      bidding: lowestCost(),
+      placements: automatic(),
+    },
+    {
+      url: 'https://renamed.to',
+      cta: 'LEARN_MORE',
+      ads: [
+        image('./assets/cold-hero.png', {
+          headline: 'Rename Files in Seconds',
+          primaryText: 'Stop renaming files one by one. Let AI create rules that work forever. Free plan available.',
+        }),
+      ],
+    },
+  )
+```
+
+---
+
+## Complete conversions campaign example
+
+```ts title="campaigns/meta-conversions.ts"
+import {
+  meta,
+  daily,
+  metaTargeting,
+  geo,
+  age,
+  audience,
+  carousel,
+  costCap,
+  manual,
+} from '@upspawn/ads'
+
+export default meta.conversions('Conversions - Signups', {
+  budget: daily(50),
+})
+  .adSet(
+    'High-Intent - Remarketing',
+    {
+      targeting: metaTargeting(
+        geo('US', 'GB', 'DE'),
+        age(25, 55),
+        audience('Product Page Visitors 7d'),
+      ),
+      optimization: 'OFFSITE_CONVERSIONS',
+      bidding: costCap(8),   // keep average CPA at $8 or less
+      placements: manual(['facebook', 'instagram'], {
+        facebookPositions: ['feed', 'story'],
+        instagramPositions: ['stream', 'story'],
+      }),
+      conversion: {
+        pixelId: '1234567890',
+        customEventType: 'CompleteRegistration',
+        conversionWindow: '7d_click',
+      },
+    },
+    {
+      url: 'https://renamed.to/signup',
+      cta: 'SIGN_UP',
+      ads: [
+        carousel(
+          [
+            { image: './assets/feature-rules.png', headline: 'Smart Rename Rules', url: 'https://renamed.to/features/rules' },
+            { image: './assets/feature-batch.png', headline: 'Batch 10,000 Files', url: 'https://renamed.to/features/batch' },
+            { image: './assets/feature-ai.png', headline: 'AI Suggestions', url: 'https://renamed.to/features/ai' },
+          ],
+          {
+            primaryText: 'Everything you need to stay organized.',
+            cta: 'SIGN_UP',
+          },
+        ),
+      ],
+    },
+  )
+```
+
+---
+
+## See also
+
+- [Meta Ads setup](/docs/guides/meta-ads-setup) — account credentials and initial setup
+- [Shared config](/docs/guides/shared-config) — reuse targeting and budget across campaigns
+- [AI generation](/docs/guides/ai-generation) — auto-generate ad copy with AI

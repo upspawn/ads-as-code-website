@@ -1,0 +1,272 @@
+---
+title: Google Performance Max Campaigns
+description: Build Performance Max campaigns with asset groups and audience signals.
+---
+
+Performance Max (PMax) campaigns let Google's AI assemble your creative assets into ads and serve them across every Google channel — Search, Display, YouTube, Gmail, Discover, and Maps — from a single campaign. Instead of ad groups with keywords, you provide **asset groups**: bundles of text, images, and video that Google can mix and match.
+
+**When to use PMax instead of individual campaign types:**
+- You want Google to find conversions across all channels, not just Search or Display
+- You have a strong conversion tracking setup and trust automated bidding
+- You want to supplement an existing Search campaign with broader reach
+- You're running retail/e-commerce and want to combine Shopping + Display + Search
+
+**PMax requires conversion tracking.** It only makes sense with `maximize-conversions` or `maximize-conversion-value` bidding — the AI needs conversion signals to optimize.
+
+---
+
+## Basic structure
+
+```ts title="campaigns/pmax.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  landscape,
+  square,
+} from '@upspawn/ads'
+
+export default google.performanceMax('PMax - Main', {
+  budget: daily(40),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'DE'), languages('en', 'de')),
+})
+  .assetGroup('main', {
+    finalUrls: ['https://example.com'],
+    headlines: ['Rename Files Fast', 'AI File Renaming', 'Batch Rename Tool'],
+    longHeadlines: ['Rename All Your Files in Seconds with AI'],
+    descriptions: ['Try free — no credit card.', 'Works on Mac, Windows, and Linux.'],
+    businessName: 'renamed.to',
+    images: {
+      landscape: [landscape('./assets/hero.png')],
+      square: [square('./assets/hero-square.png')],
+    },
+  })
+```
+
+---
+
+## The `google.performanceMax()` builder
+
+`google.performanceMax(name, input)` accepts:
+
+| Field | Type | Notes |
+|---|---|---|
+| `budget` | `Budget` | Required |
+| `bidding` | `BiddingInput` | Should be `maximize-conversions` or `maximize-conversion-value` |
+| `targeting` | `Targeting` | Geo and language only — PMax ignores keyword/audience targeting here |
+| `urlExpansion` | `boolean` | Default `true` — allows Google to send traffic to URLs beyond `finalUrls` |
+| `status` | `'enabled' \| 'paused'` | Default `'enabled'` |
+| `startDate` / `endDate` | `string` | ISO date strings `'YYYY-MM-DD'` |
+
+The builder exposes `.assetGroup(key, input)` to add asset groups. Each call returns a new builder (immutable chaining).
+
+---
+
+## Asset groups
+
+Asset groups are the creative building blocks of PMax. Each asset group has its own set of headlines, descriptions, images, and videos. Google assembles them into ads tailored to each placement.
+
+```ts
+.assetGroup('main', {
+  // Destination URLs
+  finalUrls: ['https://example.com'],
+  finalMobileUrls: ['https://example.com/m'],   // optional mobile-specific URL
+
+  // Text assets (required)
+  headlines: [           // min 3, max 15, each max 30 chars
+    'Rename Files Fast',
+    'AI File Renaming',
+    'Batch Rename Tool',
+    'No Credit Card Required',
+    'Try Free Today',
+  ],
+  longHeadlines: [       // min 1, max 5, each max 90 chars
+    'Rename All Your Files in Seconds with AI-Powered Rules',
+  ],
+  descriptions: [        // min 2, max 5, each max 90 chars
+    'Stop renaming files by hand. Let AI create rules that work forever.',
+    'Free plan available. Works with photos, docs, videos, and more.',
+  ],
+  businessName: 'renamed.to',   // max 25 chars
+
+  // Image assets (optional but strongly recommended)
+  images: {
+    landscape: [landscape('./assets/hero.png')],       // 1.91:1
+    square: [square('./assets/hero-square.png')],      // 1:1
+    portrait: [portrait('./assets/hero-port.png')],    // 4:5
+  },
+  logos: [logo('./assets/logo.png')],                  // 1:1 logo
+  landscapeLogos: [logoLandscape('./assets/logo-wide.png')], // 4:1
+
+  // Video assets (optional — YouTube URLs)
+  videos: ['https://www.youtube.com/watch?v=abc123'],
+
+  // Optional ad copy display
+  callToAction: 'Try Free',
+  path1: 'rename',           // appears in display URL: example.com/rename/files
+  path2: 'files',
+
+  // Status
+  status: 'enabled',
+})
+```
+
+### Image helpers
+
+```ts
+import { landscape, square, portrait, logo, logoLandscape } from '@upspawn/ads'
+
+landscape('./assets/hero.png')          // 1.91:1 — landscape marketing image
+square('./assets/hero-sq.png')          // 1:1 — square marketing image
+portrait('./assets/hero-port.png')      // 4:5 — portrait marketing image
+logo('./assets/logo.png')               // 1:1 — brand logo
+logoLandscape('./assets/logo-wide.png') // 4:1 — wide brand logo
+```
+
+---
+
+## Audience signals
+
+Audience signals are hints — not hard targeting constraints — that help Google's AI start learning faster. Provide signals that represent your ideal customer, and Google will use them as a starting point while still exploring broader audiences.
+
+```ts
+import { targeting, geo, remarketing, inMarket, affinity } from '@upspawn/ads'
+
+.assetGroup('main', {
+  finalUrls: ['https://example.com'],
+  headlines: ['Rename Files Fast', 'AI-Powered', 'Batch Rename Tool'],
+  longHeadlines: ['Rename All Your Files in Seconds with AI'],
+  descriptions: ['Try free.', 'No credit card required.'],
+  businessName: 'renamed.to',
+  images: {
+    landscape: [landscape('./assets/hero.png')],
+    square: [square('./assets/hero-sq.png')],
+  },
+
+  // Audience signals — hints for Google AI
+  audienceSignal: targeting(
+    geo('US'),
+    remarketing('website-visitors-30d'),   // past visitors as signal
+    inMarket('Business Software'),         // in-market segment
+  ),
+})
+```
+
+Audience signals accept the same targeting rules as regular campaigns. They do not limit who sees your ads — they just guide the initial learning phase.
+
+---
+
+## URL expansion
+
+By default, `urlExpansion: true` allows Google to send traffic to URLs it finds on your website beyond the `finalUrls` you specified. This is generally beneficial — it lets Google match queries to the most relevant landing page.
+
+Disable it if you need strict control over landing pages:
+
+```ts
+google.performanceMax('PMax - Strict', {
+  budget: daily(40),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US')),
+  urlExpansion: false,   // only use the finalUrls you specify
+})
+```
+
+---
+
+## Multiple asset groups
+
+Use multiple asset groups to test different creative approaches, target different audiences with tailored messaging, or separate product lines:
+
+```ts title="campaigns/pmax-multi-group.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  landscape,
+  square,
+  inMarket,
+  remarketing,
+} from '@upspawn/ads'
+
+export default google.performanceMax('PMax - renamed.to', {
+  budget: daily(50),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'CA', 'GB'), languages('en')),
+})
+  .assetGroup('power-users', {
+    finalUrls: ['https://renamed.to/pro'],
+    headlines: ['Pro File Renaming', 'Advanced Rules', 'Batch Rename Pro'],
+    longHeadlines: ['Professional-Grade File Renaming with AI Rules Engine'],
+    descriptions: [
+      'Regex support, metadata tagging, and custom rules. Try Pro free.',
+      '10x faster than manual renaming. Used by 5,000+ power users.',
+    ],
+    businessName: 'renamed.to',
+    images: {
+      landscape: [landscape('./assets/pro-hero.png')],
+      square: [square('./assets/pro-square.png')],
+    },
+    callToAction: 'Try Pro Free',
+    audienceSignal: targeting(geo('US'), inMarket('Business Software')),
+  })
+  .assetGroup('casual-users', {
+    finalUrls: ['https://renamed.to'],
+    headlines: ['Rename Files Instantly', 'Drag, Drop, Done', 'Free File Renamer'],
+    longHeadlines: ['The Easiest Way to Rename Files — No Tech Skills Needed'],
+    descriptions: [
+      'Works with photos, docs, and videos. Free plan available.',
+      'No installation needed. Rename files directly in your browser.',
+    ],
+    businessName: 'renamed.to',
+    images: {
+      landscape: [landscape('./assets/casual-hero.png')],
+      square: [square('./assets/casual-square.png')],
+    },
+    callToAction: 'Try Free',
+    audienceSignal: targeting(geo('US'), remarketing('blog-visitors-7d')),
+  })
+```
+
+---
+
+## Bidding strategies
+
+PMax only makes sense with conversion-focused bidding:
+
+```ts
+// Maximize conversions — most common starting point
+google.performanceMax('PMax', {
+  budget: daily(40),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US')),
+})
+
+// Maximize conversion value — better if conversions have different monetary values
+google.performanceMax('PMax', {
+  budget: daily(40),
+  bidding: 'maximize-conversion-value',
+  targeting: targeting(geo('US')),
+})
+
+// Maximize conversion value with a target ROAS
+google.performanceMax('PMax', {
+  budget: daily(40),
+  bidding: { type: 'maximize-conversion-value', targetRoas: 3.5 },
+  targeting: targeting(geo('US')),
+})
+```
+
+Avoid `maximize-clicks` for PMax — it optimizes for volume, not value, which wastes PMax's ability to find high-value conversions.
+
+---
+
+## See also
+
+- [Google Search campaigns](/docs/guides/google-search-campaigns) — keyword-intent targeting
+- [Google Display campaigns](/docs/guides/google-display-campaigns) — image-based Display-only campaigns
+- [Shared config](/docs/guides/shared-config) — reuse targeting and budget across campaigns

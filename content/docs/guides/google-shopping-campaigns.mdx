@@ -1,0 +1,204 @@
+---
+title: Google Shopping Campaigns
+description: Build Shopping campaigns with Merchant Center integration and product ad groups.
+---
+
+Shopping campaigns display product ads directly in Google Search results — including product images, prices, store names, and ratings. Unlike Search campaigns, there are no keywords or ad copy to write: ad content comes entirely from your **Merchant Center product feed**.
+
+---
+
+## Prerequisites
+
+Before creating a Shopping campaign, you need:
+
+1. **A Google Merchant Center account** with your product feed uploaded and approved
+2. **Your Merchant Center ID** — a number like `123456789`, visible in the Merchant Center URL and account settings
+3. **The Merchant Center linked to your Google Ads account** — done in Merchant Center under Settings → Linked accounts
+
+Without a linked feed, the campaign will be created but won't serve ads.
+
+---
+
+## Basic structure
+
+```ts title="campaigns/shopping.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+} from '@upspawn/ads'
+
+export default google.shopping('Shopping - All Products', {
+  budget: daily(25),
+  bidding: 'maximize-clicks',
+  targeting: targeting(geo('US', 'CA'), languages('en')),
+  merchantId: 123456789,
+})
+  .group('all-products', {})
+```
+
+---
+
+## The `google.shopping()` builder
+
+`google.shopping(name, input)` accepts:
+
+| Field | Type | Notes |
+|---|---|---|
+| `budget` | `Budget` | Required |
+| `bidding` | `BiddingInput` | Required |
+| `targeting` | `Targeting` | Optional — geo + language |
+| `merchantId` | `number` | Required — your Merchant Center account ID |
+| `campaignPriority` | `number` | `0`, `1`, or `2` — higher priority wins when multiple campaigns match |
+| `enableLocal` | `boolean` | Enable local inventory ads |
+| `feedLabel` | `string` | Filter to a specific product feed label (optional) |
+| `negatives` | `Keyword[]` | Negative keywords to block irrelevant searches |
+| `status` | `'enabled' \| 'paused'` | Default `'enabled'` |
+| `startDate` / `endDate` | `string` | ISO date strings `'YYYY-MM-DD'` |
+
+The builder exposes `.group(key, input)` to add ad groups.
+
+---
+
+## Ad groups
+
+Shopping ad groups are simpler than Search — there are no keywords or ads to write. The ad creative comes from your Merchant Center feed automatically. Each group gets an optional bid override and status:
+
+```ts
+.group('all-products', {})                    // default bid, all products
+.group('electronics', { bid: 0.75 })          // $0.75 CPC bid override
+.group('accessories', { bid: 0.40, status: 'enabled' })
+.group('clearance', { status: 'paused' })     // paused group
+```
+
+The `bid` is a CPC bid in your account's currency units (dollars, euros, etc.). If omitted, the campaign-level bidding strategy controls bids.
+
+---
+
+## Campaign priority
+
+When multiple Shopping campaigns could serve for the same query, `campaignPriority` determines which one wins the internal auction. Higher number = higher priority:
+
+```ts
+// High-priority campaign for bestsellers (wins over general campaign)
+google.shopping('Shopping - Bestsellers', {
+  budget: daily(30),
+  bidding: 'maximize-clicks',
+  targeting: targeting(geo('US')),
+  merchantId: 123456789,
+  campaignPriority: 2,         // highest priority
+})
+
+// Medium-priority for general catalog
+google.shopping('Shopping - General', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  targeting: targeting(geo('US')),
+  merchantId: 123456789,
+  campaignPriority: 0,         // lowest priority (default)
+})
+```
+
+Use priority tiers to control budget allocation across product segments without feed-level filtering.
+
+---
+
+## Bidding strategies for Shopping
+
+Shopping campaigns support a subset of Google's bidding strategies:
+
+```ts
+// Maximize clicks — most common starting strategy
+google.shopping('Shopping', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  merchantId: 123456789,
+})
+
+// Maximize clicks with a CPC cap
+google.shopping('Shopping', {
+  budget: daily(20),
+  bidding: { type: 'maximize-clicks', maxCpc: 1.50 },
+  merchantId: 123456789,
+})
+
+// Target ROAS — requires conversion tracking and sufficient history
+google.shopping('Shopping - ROAS', {
+  budget: daily(40),
+  bidding: { type: 'target-roas', targetRoas: 4.0 },
+  merchantId: 123456789,
+})
+
+// Maximize conversion value (similar to maximize-clicks but value-focused)
+google.shopping('Shopping - Value', {
+  budget: daily(40),
+  bidding: 'maximize-conversion-value',
+  merchantId: 123456789,
+})
+
+// Manual CPC — you control bids per group
+google.shopping('Shopping - Manual', {
+  budget: daily(15),
+  bidding: 'manual-cpc',
+  merchantId: 123456789,
+})
+```
+
+---
+
+## Complete example
+
+A two-tier Shopping structure — one campaign for priority products, one for everything else:
+
+```ts title="campaigns/shopping.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  negatives,
+  broad,
+  phrase,
+} from '@upspawn/ads'
+
+// High-priority campaign for products on sale
+export const shoppingSale = google.shopping('Shopping - Sale Items', {
+  budget: daily(30),
+  bidding: { type: 'target-roas', targetRoas: 3.5 },
+  targeting: targeting(geo('US', 'CA'), languages('en')),
+  merchantId: 123456789,
+  campaignPriority: 2,
+  feedLabel: 'sale-items',
+  negatives: [
+    ...broad('used', 'refurbished', 'wholesale'),
+  ],
+})
+  .group('sale-products', { bid: 1.20 })
+
+// Standard-priority campaign for full catalog
+export const shoppingAll = google.shopping('Shopping - All Products', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  targeting: targeting(geo('US', 'CA'), languages('en')),
+  merchantId: 123456789,
+  campaignPriority: 0,
+  negatives: [
+    ...broad('used', 'refurbished', 'wholesale'),
+    ...phrase('how to make', 'diy'),
+  ],
+})
+  .group('all-products', {})
+  .group('electronics', { bid: 0.90 })
+  .group('accessories', { bid: 0.50 })
+```
+
+---
+
+## See also
+
+- [Google Search campaigns](/docs/guides/google-search-campaigns) — keyword-intent targeting to complement Shopping
+- [Performance Max](/docs/guides/google-pmax-campaigns) — combines Shopping + Search + Display + YouTube in one campaign
+- [Shared config](/docs/guides/shared-config) — reuse targeting and budget across campaigns

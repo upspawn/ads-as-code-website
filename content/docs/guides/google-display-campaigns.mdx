@@ -1,0 +1,300 @@
+---
+title: Google Display Campaigns
+description: Build Display campaigns with responsive ads, image assets, and placement targeting.
+---
+
+Display campaigns serve image-based ads across millions of websites in the Google Display Network — news sites, blogs, apps, and YouTube. They're most effective for remarketing (re-engaging visitors who've already seen your brand) and awareness (reaching new audiences at scale).
+
+**When to use Display instead of Search:**
+- You want to reach people *before* they search — while they're reading relevant content
+- You're running remarketing to past visitors or similar audiences
+- You have strong visual creative and want brand recall
+- CPM pricing fits your budget model better than CPC
+
+---
+
+## Basic structure
+
+```ts title="campaigns/display-remarketing.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  responsiveDisplay,
+  landscape,
+  square,
+} from '@upspawn/ads'
+
+export default google.display('Display - Remarketing', {
+  budget: daily(15),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'DE'), languages('en', 'de')),
+})
+  .group('remarketing', {
+    ad: responsiveDisplay({
+      headlines: ['Rename Files Fast', 'AI-Powered Renaming'],
+      longHeadline: 'Rename All Your Files in Seconds with AI',
+      descriptions: ['Try renamed.to free', 'No credit card required'],
+      businessName: 'renamed.to',
+      finalUrl: 'https://renamed.to',
+      marketingImages: [landscape('./assets/hero.png')],
+      squareMarketingImages: [square('./assets/hero-square.png')],
+    }),
+  })
+```
+
+---
+
+## The `google.display()` builder
+
+`google.display(name, input)` accepts the same base options as Search — budget, bidding, targeting, status, start/end dates — plus `networkSettings` to control delivery.
+
+The builder exposes a single `.group(key, input)` method. Display ad groups contain one or more `ResponsiveDisplayAd` objects (type `'responsive-display'`) and optional per-group targeting overrides.
+
+---
+
+## Responsive Display Ads
+
+`responsiveDisplay()` is the only Display ad format. Google assembles assets into the best combination for each placement automatically.
+
+```ts
+import { responsiveDisplay, landscape, square, portrait, logo, logoLandscape } from '@upspawn/ads'
+
+responsiveDisplay({
+  // Required text assets
+  headlines: ['Rename Files Fast', 'AI-Powered', 'Batch Rename Tool'],  // 1-5, max 30 chars each
+  longHeadline: 'Rename All Your Files in Seconds with AI',              // max 90 chars
+  descriptions: ['Try renamed.to free', 'No credit card required'],      // 1-5, max 90 chars each
+  businessName: 'renamed.to',                                            // max 25 chars
+
+  // Destination
+  finalUrl: 'https://renamed.to',
+
+  // Required images
+  marketingImages: [landscape('./assets/hero.png')],              // 1.91:1 ratio
+  squareMarketingImages: [square('./assets/hero-square.png')],    // 1:1 ratio
+
+  // Optional images
+  logoImages: [logo('./assets/logo.png')],                        // 1:1 logo
+  squareLogoImages: [logo('./assets/logo-square.png')],
+
+  // Optional style
+  callToAction: 'Sign Up',
+  mainColor: '#1a73e8',
+  accentColor: '#ffffff',
+})
+```
+
+### Image asset helpers
+
+Use the image helpers to declare aspect ratios. The SDK uploads the images during `apply` and associates them with the correct asset type in Google Ads.
+
+```ts
+import { landscape, square, portrait, logo, logoLandscape } from '@upspawn/ads'
+
+landscape('./assets/hero.png')        // 1.91:1 — main marketing image
+square('./assets/hero-sq.png')        // 1:1 — marketing image, square variant
+portrait('./assets/hero-port.png')    // 4:5 — portrait variant for vertical placements
+logo('./assets/logo.png')             // 1:1 — brand logo
+logoLandscape('./assets/logo-wide.png') // 4:1 — wide brand logo
+```
+
+Provide multiple images of each type to give Google more options:
+
+```ts
+marketingImages: [
+  landscape('./assets/hero-v1.png'),
+  landscape('./assets/hero-v2.png'),
+],
+squareMarketingImages: [
+  square('./assets/square-v1.png'),
+  square('./assets/square-v2.png'),
+],
+```
+
+---
+
+## Display targeting
+
+Display targeting uses the same `targeting()` composition as Search, but adds Display-specific options: placements, topics, and content keywords.
+
+### Placements — specific sites
+
+Restrict delivery to websites you choose:
+
+```ts
+import { targeting, geo, placements } from '@upspawn/ads'
+
+targeting(
+  geo('US'),
+  placements('techcrunch.com', 'news.ycombinator.com', 'youtube.com'),
+)
+```
+
+### Topics — content categories
+
+Target pages whose content matches a topic from Google's taxonomy:
+
+```ts
+import { targeting, geo, topics } from '@upspawn/ads'
+
+targeting(
+  geo('US', 'DE'),
+  topics('Computers & Electronics/Software', 'Business/Productivity'),
+)
+```
+
+### Content keywords — keyword-contextual
+
+Target pages that contain specific keywords in their content:
+
+```ts
+import { targeting, geo, contentKeywords } from '@upspawn/ads'
+
+targeting(
+  geo('US'),
+  contentKeywords('file renaming', 'batch rename', 'file organization'),
+)
+```
+
+### Audience targeting — remarketing
+
+Combine geo with remarketing audiences for high-intent retargeting:
+
+```ts
+import { targeting, geo, languages, remarketing } from '@upspawn/ads'
+
+targeting(
+  geo('US', 'CA'),
+  languages('en'),
+  remarketing('website-visitors-30d'),
+)
+```
+
+See the [targeting reference](/docs/reference/targeting) for all available rules.
+
+---
+
+## Bidding strategies for Display
+
+Display campaigns support the following bidding strategies. CPM-based strategies are more common here than on Search.
+
+```ts
+import { google, daily } from '@upspawn/ads'
+
+// Automated — most common for remarketing
+google.display('Display Campaign', {
+  budget: daily(15),
+  bidding: 'maximize-conversions',
+})
+
+// Automated — maximize click volume
+google.display('Display Campaign', {
+  budget: daily(15),
+  bidding: 'maximize-clicks',
+})
+
+// Manual CPM — you set the bid per 1,000 impressions
+google.display('Display Campaign', {
+  budget: daily(15),
+  bidding: 'manual-cpm',
+})
+
+// Target CPM — automated CPM targeting
+google.display('Display Campaign', {
+  budget: daily(15),
+  bidding: 'target-cpm',
+})
+
+// Target CPA — automated, optimize for conversions at a target cost
+google.display('Display Campaign', {
+  budget: daily(15),
+  bidding: { type: 'target-cpa', targetCpa: 5 },
+})
+```
+
+---
+
+## Complete example
+
+```ts title="campaigns/display-full.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  topics,
+  placements,
+  device,
+  responsiveDisplay,
+  landscape,
+  square,
+  logo,
+} from '@upspawn/ads'
+
+export default google.display('Display - Product Awareness', {
+  budget: daily(25),
+  bidding: { type: 'target-cpa', targetCpa: 8 },
+  targeting: targeting(
+    geo('US', 'CA', 'GB'),
+    languages('en'),
+    device('mobile', 0.2),    // +20% on mobile
+    device('tablet', -0.3),   // -30% on tablet
+  ),
+  status: 'enabled',
+  networkSettings: {
+    searchNetwork: false,
+    searchPartners: false,
+    displayNetwork: true,
+  },
+})
+  .group('tech-topics', {
+    targeting: targeting(
+      geo('US'),
+      topics('Computers & Electronics/Software'),
+    ),
+    ad: responsiveDisplay({
+      headlines: ['Rename Files Fast', 'AI-Powered', 'Try Free Today'],
+      longHeadline: 'Stop Renaming Files by Hand — Let AI Do It in Seconds',
+      descriptions: [
+        'Batch rename photos, docs, and videos with smart rules.',
+        'No credit card required. Works on Mac, Windows, and Linux.',
+      ],
+      businessName: 'renamed.to',
+      finalUrl: 'https://renamed.to',
+      marketingImages: [landscape('./assets/display-hero.png')],
+      squareMarketingImages: [square('./assets/display-square.png')],
+      logoImages: [logo('./assets/logo.png')],
+      callToAction: 'Try Free',
+    }),
+  })
+  .group('specific-sites', {
+    targeting: targeting(
+      geo('US'),
+      placements('producthunt.com', 'techcrunch.com'),
+    ),
+    ad: responsiveDisplay({
+      headlines: ['Rename Files Automatically', 'AI File Renamer', 'Batch Rename Tool'],
+      longHeadline: 'Rename Thousands of Files in Seconds — No More Manual Work',
+      descriptions: [
+        'Create rules once, rename forever. Powered by AI.',
+        'Start free, no credit card needed.',
+      ],
+      businessName: 'renamed.to',
+      finalUrl: 'https://renamed.to/product',
+      marketingImages: [landscape('./assets/product-hero.png')],
+      squareMarketingImages: [square('./assets/product-square.png')],
+    }),
+  })
+```
+
+---
+
+## See also
+
+- [Google Search campaigns](/docs/guides/google-search-campaigns) — keyword-intent targeting
+- [Performance Max](/docs/guides/google-pmax-campaigns) — AI-assembled ads across all channels including Display
+- [Shared config](/docs/guides/shared-config) — reuse targeting and budget across campaigns

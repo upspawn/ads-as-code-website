@@ -1,0 +1,347 @@
+---
+title: Demand Gen, Smart & App Campaigns
+description: Build Demand Gen, Smart, and App campaigns for YouTube, discovery, and mobile app promotion.
+---
+
+This guide covers three additional Google campaign types:
+
+- **Demand Gen** — visual ads across YouTube, Discover, Gmail, and Display, using audience-based targeting
+- **Smart** — simplified campaigns for small businesses that run across Search, Display, and Maps
+- **App** — campaigns that drive app installs and in-app actions across all Google surfaces
+
+---
+
+## Demand Gen campaigns
+
+Demand Gen campaigns serve image and video ads in high-intent discovery moments — YouTube (including Shorts), Google Discover, Gmail, and Display Network. They use audience-based targeting rather than keywords, and are designed to reach people earlier in the funnel.
+
+**When to use Demand Gen:**
+- You have strong visual or video creative and want reach beyond Search
+- You want to run awareness or consideration campaigns with audience signals
+- You're complementing a Search campaign with upper-funnel coverage
+
+### Basic structure
+
+```ts title="campaigns/demand-gen.ts"
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  demandGenMultiAsset,
+  landscape,
+  square,
+} from '@upspawn/ads'
+
+export default google.demandGen('Demand Gen - Awareness', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+  targeting: targeting(geo('US', 'DE'), languages('en', 'de')),
+})
+  .group('awareness', {
+    ad: demandGenMultiAsset({
+      headlines: ['Rename Files Fast', 'AI-Powered Renaming'],
+      descriptions: ['Try renamed.to free', 'Batch rename in seconds'],
+      businessName: 'renamed.to',
+      finalUrl: 'https://renamed.to',
+      marketingImages: [landscape('./assets/hero.png')],
+      squareMarketingImages: [square('./assets/hero-sq.png')],
+    }),
+  })
+```
+
+### Multi-asset ads
+
+`demandGenMultiAsset()` provides multiple headlines, descriptions, and images that Google assembles into the best combination for each placement.
+
+```ts
+import { demandGenMultiAsset, landscape, square, portrait, logo } from '@upspawn/ads'
+
+demandGenMultiAsset({
+  // Text assets
+  headlines: [                          // max 5, each max 40 chars
+    'Rename Files Fast',
+    'AI-Powered Renaming',
+    'Batch Rename Tool',
+  ],
+  descriptions: [                       // max 5, each max 90 chars
+    'Try renamed.to free — no credit card required.',
+    'Rename thousands of files in seconds with AI rules.',
+  ],
+  businessName: 'renamed.to',          // shown in the ad
+
+  // Destination
+  finalUrl: 'https://renamed.to',
+
+  // Image assets (optional but recommended)
+  marketingImages: [                    // landscape 1.91:1
+    landscape('./assets/hero.png'),
+    landscape('./assets/hero-v2.png'),
+  ],
+  squareMarketingImages: [             // square 1:1
+    square('./assets/hero-sq.png'),
+  ],
+  portraitMarketingImages: [           // portrait 4:5, for vertical placements
+    portrait('./assets/hero-port.png'),
+  ],
+  logoImages: [logo('./assets/logo.png')],
+
+  // Optional
+  callToAction: 'Learn More',
+})
+```
+
+### Carousel ads
+
+Carousel ads show a scrollable series of cards, each with its own headline, image, and URL. Well-suited for showcasing multiple features or products.
+
+```ts
+import { demandGenCarousel, carouselCard, landscape, square } from '@upspawn/ads'
+
+demandGenCarousel({
+  headline: 'See How renamed.to Works',            // campaign-level headline
+  description: 'Swipe to explore features',
+  businessName: 'renamed.to',
+  finalUrl: 'https://renamed.to',
+  logoImage: logo('./assets/logo.png'),
+  callToAction: 'Try Free',
+  cards: [                                          // min 2, max 10
+    carouselCard({
+      headline: 'Upload Your Files',
+      finalUrl: 'https://renamed.to/upload',
+      marketingImage: landscape('./assets/step1.png'),
+    }),
+    carouselCard({
+      headline: 'Set Rename Rules',
+      finalUrl: 'https://renamed.to/rules',
+      marketingImage: landscape('./assets/step2.png'),
+    }),
+    carouselCard({
+      headline: 'Download Renamed Files',
+      finalUrl: 'https://renamed.to/download',
+      marketingImage: landscape('./assets/step3.png'),
+    }),
+  ],
+})
+```
+
+### Channel controls
+
+By default, Demand Gen ads run on all channels (YouTube, Discover, Gmail, Display, YouTube Shorts). Restrict delivery with `channels`:
+
+```ts
+.group('youtube-only', {
+  ad: demandGenMultiAsset({ /* ... */ }),
+  channels: {
+    youtube: true,
+    youtubeShorts: true,
+    discover: false,
+    gmail: false,
+    display: false,
+  },
+})
+```
+
+### Multiple ads per group
+
+Provide an array to A/B test creative approaches:
+
+```ts
+.group('creative-test', {
+  ad: [
+    demandGenMultiAsset({
+      headlines: ['Rename Files Fast', 'AI-Powered', 'Try Free'],
+      descriptions: ['Batch rename in seconds.', 'No card needed.'],
+      businessName: 'renamed.to',
+      finalUrl: 'https://renamed.to',
+      marketingImages: [landscape('./assets/hero-a.png')],
+      squareMarketingImages: [square('./assets/sq-a.png')],
+    }),
+    demandGenCarousel({
+      headline: 'See How It Works',
+      description: 'Three steps to organized files',
+      businessName: 'renamed.to',
+      finalUrl: 'https://renamed.to',
+      cards: [
+        carouselCard({ headline: 'Upload', finalUrl: 'https://renamed.to/upload' }),
+        carouselCard({ headline: 'Rename', finalUrl: 'https://renamed.to/rename' }),
+        carouselCard({ headline: 'Download', finalUrl: 'https://renamed.to/download' }),
+      ],
+    }),
+  ],
+})
+```
+
+---
+
+## Smart campaigns
+
+Smart campaigns are Google's simplified campaign type for small businesses. Instead of keywords, you provide **keyword themes** — broad topic hints that Google uses to decide when to show your ads. They run across Search, Display, and Maps automatically.
+
+Smart campaigns are flat — there is no `.group()` builder. The campaign object is returned directly.
+
+**When to use Smart campaigns:**
+- You're a small business and don't want to manage keywords manually
+- You want ads on Google Maps and local search
+- You need to get up and running quickly with minimal configuration
+
+```ts title="campaigns/smart.ts"
+import { google, daily, smartAd } from '@upspawn/ads'
+
+export default google.smart('Smart - Local Business', {
+  budget: daily(10),
+  status: 'enabled',
+  businessName: 'renamed.to',
+  finalUrl: 'https://renamed.to',
+  language: 'en',
+  keywordThemes: [
+    'file renaming',
+    'batch rename',
+    'file organization',
+    'photo renaming',
+  ],
+  ad: smartAd({
+    headlines: ['Rename Files Fast', 'AI File Renamer', 'Try Free Today'],  // exactly 3, max 30 chars
+    descriptions: [
+      'Rename thousands of files in seconds.',           // exactly 2, max 90 chars
+      'Free plan. Works on Mac, Windows, and Linux.',
+    ],
+  }),
+})
+```
+
+### `smartAd()` requirements
+
+Smart campaigns require **exactly 3 headlines** (max 30 chars each) and **exactly 2 descriptions** (max 90 chars each). This is stricter than RSA, which allows ranges.
+
+```ts
+import { smartAd } from '@upspawn/ads'
+
+smartAd({
+  headlines: ['Headline One', 'Headline Two', 'Headline Three'],  // tuple: [string, string, string]
+  descriptions: ['Description one, max 90 chars.', 'Description two, max 90 chars.'],
+})
+```
+
+TypeScript enforces the tuple length — you'll get a compile error if you provide 2 or 4 headlines.
+
+### Business Profile link
+
+Link your Google Business Profile to show local extensions:
+
+```ts
+google.smart('Smart - Local', {
+  budget: daily(10),
+  businessName: 'My Coffee Shop',
+  businessProfile: 'locations/12345678',   // your Business Profile location ID
+  finalUrl: 'https://mycoffeeshop.com',
+  language: 'en',
+  keywordThemes: ['coffee shop', 'cafe near me', 'espresso'],
+  ad: smartAd({
+    headlines: ['Fresh Coffee Daily', 'Award-Winning Espresso', 'Visit Us Today'],
+    descriptions: ['Open 7am–7pm, Mon–Sat.', 'Free Wi-Fi. Cozy seating.'],
+  }),
+})
+```
+
+---
+
+## App campaigns
+
+App campaigns drive installs and in-app actions for iOS and Android apps. Google assembles ads from your headlines, descriptions, images, and videos and serves them across Search, Display, YouTube, and the Play Store.
+
+App campaigns are flat — like Smart campaigns, there is no `.group()` builder. The campaign object is returned directly.
+
+```ts title="campaigns/app.ts"
+import { google, daily, targeting, geo, languages, appAd } from '@upspawn/ads'
+
+export default google.app('App - Installs', {
+  budget: daily(30),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'CA'), languages('en')),
+  appId: 'com.renamed.to.android',
+  appStore: 'google',
+  goal: 'installs',
+  ad: appAd({
+    headlines: [                    // max 5, each max 30 chars
+      'Rename Files Fast',
+      'AI-Powered Renaming',
+      'Batch Rename Tool',
+    ],
+    descriptions: [                 // max 5, each max 90 chars
+      'Stop renaming files manually. Let AI do it in seconds.',
+      'Download free. Works offline.',
+    ],
+    images: [
+      landscape('./assets/app-hero.png'),
+      square('./assets/app-square.png'),
+    ],
+    videos: ['https://www.youtube.com/watch?v=yourAppDemo'],
+  }),
+})
+```
+
+### App goals
+
+```ts
+// Maximize installs — most common starting goal
+google.app('App - Installs', {
+  /* ... */
+  goal: 'installs',    // default if omitted
+})
+
+// Optimize for in-app actions (requires conversion tracking in the app)
+google.app('App - In-App Actions', {
+  /* ... */
+  goal: 'in-app-actions',
+})
+
+// Pre-registration (Android only — before app launches in Play Store)
+google.app('App - Pre-Register', {
+  /* ... */
+  goal: 'pre-registration',
+})
+```
+
+### App store options
+
+```ts
+// Android app — use the full package name from Play Store
+google.app('App - Android', {
+  /* ... */
+  appId: 'com.yourcompany.yourapp',
+  appStore: 'google',
+})
+
+// iOS app — use the App Store app ID (numeric)
+google.app('App - iOS', {
+  /* ... */
+  appId: '1234567890',
+  appStore: 'apple',
+})
+```
+
+### `appAd()` helper
+
+```ts
+import { appAd, landscape, square } from '@upspawn/ads'
+
+appAd({
+  headlines: ['Headline 1', 'Headline 2', 'Headline 3'],   // max 5, max 30 chars each
+  descriptions: ['Description 1', 'Description 2'],        // max 5, max 90 chars each
+  images: [                                                 // optional image assets
+    landscape('./assets/app-hero.png'),
+    square('./assets/app-icon.png'),
+  ],
+  videos: ['https://www.youtube.com/watch?v=abc'],          // optional YouTube URLs
+})
+```
+
+---
+
+## See also
+
+- [Google Search campaigns](/docs/guides/google-search-campaigns) — keyword-intent targeting
+- [Performance Max](/docs/guides/google-pmax-campaigns) — AI-assembled ads across all channels
+- [Shared config](/docs/guides/shared-config) — reuse targeting and budget across campaigns

@@ -1,4 +1,16 @@
 {
   "title": "Guides",
-  "pages": ["google-ads-setup", "meta-ads-setup", "writing-campaigns", "shared-config", "ai-generation", "campaign-variants"]
+  "pages": [
+    "google-ads-setup",
+    "meta-ads-setup",
+    "google-search-campaigns",
+    "google-display-campaigns",
+    "google-pmax-campaigns",
+    "google-shopping-campaigns",
+    "google-other-campaigns",
+    "meta-campaigns",
+    "shared-config",
+    "ai-generation",
+    "campaign-variants"
+  ]
 }
