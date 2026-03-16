@@ -16,13 +16,13 @@ This guide walks you through a complete setup in about 5 minutes.
 ## 1. Install
 
 ```bash
-bun add -g @upspawn/ads
+bun add @upspawn/ads
 ```
 
-Verify the install:
+This adds the SDK as a project dependency and makes the `ads` CLI available via `bunx ads` (or install globally with `bun add -g @upspawn/ads` to use `ads` directly).
 
 ```bash
-ads --help
+bunx ads --help
 ```
 
 ---
@@ -193,7 +193,7 @@ ads apply --dry-run
 
 ## Next steps
 
-- [Writing Campaigns](/docs/guides/writing-campaigns) — full guide to the campaign DSL
+- [Google Search Campaigns](/docs/guides/google-search-campaigns) — full guide to the campaign DSL
 - [Google Ads Setup](/docs/guides/google-ads-setup) — detailed credential setup
 - [Meta Ads Setup](/docs/guides/meta-ads-setup) — Meta API credentials
 - [CLI Reference](/docs/reference/cli) — all commands and flags
