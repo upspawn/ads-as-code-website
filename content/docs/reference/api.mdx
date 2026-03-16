@@ -1,327 +1,1019 @@
 ---
 title: API Reference
-description: SDK exports, builder methods, and helper functions.
+description: Complete reference for all @upspawn/ads exports — campaign builders, helpers, and types.
 ---
 
-All public exports are available from `@upspawn/ads`.
+All public exports are available from `@upspawn/ads`. This page covers every exported function. For deeper coverage of specific areas, see:
+
+- [Targeting Helpers](/docs/reference/targeting)
+- [Extensions](/docs/reference/extensions)
+- [Bidding Strategies](/docs/reference/bidding-strategies)
 
 ---
 
-## Google
+## Table of Contents
+
+1. [Google Campaign Builders](#google-campaign-builders)
+2. [Meta Campaign Builders](#meta-campaign-builders)
+3. [Ad Helpers](#ad-helpers)
+4. [Keyword Helpers](#keyword-helpers)
+5. [Budget Helpers](#budget-helpers)
+6. [Targeting Helpers](#targeting-helpers)
+7. [Extension Helpers](#extension-helpers)
+8. [Image Asset Helpers](#image-asset-helpers)
+9. [URL and Negatives](#url-and-negatives)
+10. [Meta Helpers](#meta-helpers)
+11. [Account-Level Resources](#account-level-resources)
+12. [AI Module](#ai-module)
+13. [Assets](#assets)
+14. [Config](#config)
+
+---
+
+## Google Campaign Builders
+
+Import: `import { google } from '@upspawn/ads'`
 
 ### `google.search(name, config)`
 
-Creates a Google Search campaign builder.
+Creates a Google Search campaign with a chainable builder.
 
 ```ts
-import { google } from '@upspawn/ads'
+google.search(name: string, input: SearchCampaignInput): CampaignBuilder
+```
 
-const campaign = google.search('Campaign Name', {
+| Field | Type | Default |
+|-------|------|---------|
+| `budget` | `Budget` | required |
+| `bidding` | `BiddingInput` | required |
+| `targeting` | `Targeting` | `{ rules: [] }` |
+| `negatives` | `Keyword[]` | `[]` |
+| `status` | `'enabled' \| 'paused'` | `'enabled'` |
+| `startDate` | `string` | — |
+| `endDate` | `string` | — |
+| `trackingTemplate` | `string` | — |
+| `finalUrlSuffix` | `string` | — |
+| `customParameters` | `Record<string, string>` | — |
+| `networkSettings` | `NetworkSettings` | — |
+
+Returns a `CampaignBuilder` with methods: `.group()`, `.locale()`, `.sitelinks()`, `.callouts()`, `.snippets()`, `.calls()`, `.prices()`, `.promotions()`, `.images()`.
+
+```ts
+import { google, daily, targeting, geo, languages, negatives } from '@upspawn/ads'
+
+export default google.search('Search - Exact Match', {
   budget: daily(20),
-  bidding: 'maximize-clicks',
-  negatives: [...broad('free', 'tutorial')],
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'DE'), languages('en', 'de')),
+  negatives: negatives('free', 'open source'),
+})
+```
+
+---
+
+### `google.display(name, config)`
+
+Creates a Google Display campaign.
+
+```ts
+google.display(name: string, input: DisplayCampaignInput): DisplayCampaignBuilder
+```
+
+Same config fields as `google.search()` (minus `customParameters`). Returns a `DisplayCampaignBuilder` with `.group()`.
+
+```ts
+import { google, daily, targeting, geo, languages } from '@upspawn/ads'
+
+export default google.display('Display - Remarketing', {
+  budget: daily(5),
+  bidding: 'maximize-conversions',
   targeting: targeting(geo('US'), languages('en')),
 })
+  .group('remarketing', { ad: responsiveDisplay({ /* ... */ }) })
 ```
 
-**Config:**
+---
+
+### `google.performanceMax(name, config)`
+
+Creates a Google Performance Max campaign. PMax runs across all Google surfaces (Search, Display, YouTube, Gmail, Discover, Maps) using asset groups.
+
+```ts
+google.performanceMax(name: string, input: PMaxCampaignInput): PMaxCampaignBuilder
+```
+
+| Field | Type | Default |
+|-------|------|---------|
+| `budget` | `Budget` | required |
+| `bidding` | `BiddingInput` | required — only `maximize-conversions` or `maximize-conversion-value` |
+| `targeting` | `Targeting` | geo + language only |
+| `urlExpansion` | `boolean` | `true` |
+| `status` | `'enabled' \| 'paused'` | `'enabled'` |
+
+Returns a `PMaxCampaignBuilder` with `.assetGroup()`.
+
+```ts
+import { google, daily, targeting, geo, languages } from '@upspawn/ads'
+
+export default google.performanceMax('PMax - Core', {
+  budget: daily(15),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'DE'), languages('en', 'de')),
+})
+  .assetGroup('main', {
+    finalUrls: ['https://example.com'],
+    headlines: ['Rename Files Fast', 'AI File Renaming', 'Batch Rename Tool'],
+    longHeadlines: ['Rename All Your Files in Seconds with AI'],
+    descriptions: ['Try it free today.', 'No credit card required.'],
+    businessName: 'example.com',
+  })
+```
+
+---
+
+### `google.shopping(name, config)`
+
+Creates a Google Shopping campaign driven by a Merchant Center product feed.
+
+```ts
+google.shopping(name: string, input: ShoppingCampaignInput): ShoppingCampaignBuilder
+```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `budget` | `Budget` | Daily, monthly, or lifetime budget |
-| `bidding` | `BiddingStrategy` | Bidding strategy (see below) |
-| `negatives` | `NegativeKeyword[]` | Campaign-level negative keywords |
-| `targeting` | `Targeting` | Geo, language, schedule targeting |
-| `status` | `'ENABLED' \| 'PAUSED'` | Campaign status (default: `ENABLED`) |
+| `budget` | `Budget` | required |
+| `bidding` | `BiddingInput` | required |
+| `merchantId` | `number` | Merchant Center ID |
+| `campaignPriority` | `0 \| 1 \| 2` | 0 = low, 2 = high |
+| `enableLocal` | `boolean` | Enable local inventory ads |
+| `feedLabel` | `string` | Target a specific feed |
 
-**Bidding strategies:**
+Returns a `ShoppingCampaignBuilder` with `.group()`. Shopping ad groups have no keywords or ads — only optional bids.
 
 ```ts
-'maximize-clicks'                              // Maximize clicks (TARGET_SPEND)
-'maximize-conversions'                         // Maximize conversions
-{ type: 'target-cpa', targetCpa: 15 }         // Target CPA
-{ type: 'target-roas', targetRoas: 3.0 }      // Target ROAS
-{ type: 'manual-cpc' }                        // Manual CPC
+export default google.shopping('Shopping - All Products', {
+  budget: daily(10),
+  bidding: 'maximize-clicks',
+  targeting: targeting(geo('US')),
+  merchantId: 123456789,
+})
+  .group('all-products', {})
+  .group('electronics', { bid: 0.75 })
 ```
 
-### `.group(name, config)`
+---
 
-Adds an ad group to the campaign. Chainable.
+### `google.demandGen(name, config)`
+
+Creates a Demand Gen campaign serving across YouTube, Discover, Gmail, and Display with multi-asset and carousel ads.
 
 ```ts
-campaign.group('ad-group-name', {
-  keywords: [...exact('keyword')],
-  ad: rsa(/* ... */),
-  status: 'ENABLED',
+google.demandGen(name: string, input: DemandGenCampaignInput): DemandGenCampaignBuilder
+```
+
+Returns a `DemandGenCampaignBuilder` with `.group()`. Ad groups can contain `DemandGenMultiAssetAd` or `DemandGenCarouselAd`, plus optional `channels` controls.
+
+---
+
+### `google.smart(name, config)`
+
+Creates a Smart Campaign. Smart campaigns use keyword themes instead of keywords and run across Search, Display, and Maps. Returns a flat `GoogleSmartCampaign` (no `.group()` chaining).
+
+```ts
+google.smart(name: string, input: SmartCampaignInput): GoogleSmartCampaign
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `budget` | `Budget` | required |
+| `businessName` | `string` | required |
+| `finalUrl` | `string` | required |
+| `keywordThemes` | `string[]` | required — theme strings |
+| `ad` | `SmartCampaignAd` | required — use `smartAd()` |
+| `language` | `string` | default `'en'` |
+
+---
+
+### `google.app(name, config)`
+
+Creates an App Campaign for driving installs or in-app actions across Search, Display, YouTube, and Play Store.
+
+```ts
+google.app(name: string, input: AppCampaignInput): GoogleAppCampaign
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `budget` | `Budget` | required |
+| `bidding` | `BiddingInput` | required |
+| `appId` | `string` | required |
+| `appStore` | `'google' \| 'apple'` | required |
+| `ad` | `AppAdInfo` | required — use `appAd()` |
+| `goal` | `'installs' \| 'in-app-actions' \| 'pre-registration'` | default `'installs'` |
+
+Returns a flat `GoogleAppCampaign` (no chaining).
+
+---
+
+## Builder Methods
+
+These methods are available on the builders returned by `google.search()`, `google.display()`, etc.
+
+### `.group(key, config)` — Search, Display, Shopping, Demand Gen
+
+Add an ad group. `key` is the stable identifier used for the resource path.
+
+```ts
+campaign.group('pdf-renaming', {
+  keywords: exact('rename pdf', 'pdf renamer'),
+  ad: rsa(headlines('...'), descriptions('...'), url('https://example.com')),
 })
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `keywords` | `Keyword[]` | Keywords for this ad group |
-| `ad` | `RsaAd` | The responsive search ad |
-| `status` | `'ENABLED' \| 'PAUSED'` | Ad group status |
+For Display: `ad` accepts `ResponsiveDisplayAd`. For Shopping: accepts `{ bid?: number; status?: string }`.
 
-### `.sitelinks(...links)`
+---
 
-Adds sitelink extensions. Chainable.
+### `.locale(key, targeting, config)` — Search only
+
+Add an ad group with a targeting override (for multi-language or multi-region campaigns).
 
 ```ts
-campaign.sitelinks(
-  link('Pricing', 'https://example.com/pricing', {
-    description1: 'Free plan available',
-    description2: 'No credit card required',
-  }),
-  link('Features', 'https://example.com/features'),
+campaign.locale('en-us', targeting(geo('US'), languages('en')), {
+  keywords: exact('rename files'),
+  ad: rsa(/* ... */),
+})
+```
+
+---
+
+### `.assetGroup(key, config)` — Performance Max only
+
+Add an asset group.
+
+```ts
+builder.assetGroup('main', {
+  finalUrls: ['https://example.com'],
+  headlines: ['Headline 1', 'Headline 2', 'Headline 3'],
+  longHeadlines: ['Long headline text'],
+  descriptions: ['Description 1', 'Description 2'],
+  businessName: 'My Business',
+  images: {
+    landscape: [landscape('./hero.png')],
+    square: [square('./hero-sq.png')],
+  },
+  audienceSignal: targeting(remarketing('123')),
+})
+```
+
+---
+
+### `.sitelinks()`, `.callouts()`, `.snippets()`, `.calls()`, `.prices()`, `.promotions()`, `.images()` — Search only
+
+Attach extensions. See [Extensions](/docs/reference/extensions) for full details.
+
+---
+
+## Meta Campaign Builders
+
+Import: `import { meta } from '@upspawn/ads'`
+
+All Meta builders return a `MetaCampaignBuilder<T>` with a `.adSet()` method.
+
+### `meta.traffic(name, config?)`
+### `meta.awareness(name, config?)`
+### `meta.engagement(name, config?)`
+### `meta.leads(name, config?)`
+### `meta.sales(name, config?)`
+### `meta.conversions(name, config?)` — alias for `meta.sales()`
+### `meta.appPromotion(name, config?)`
+
+```ts
+meta.traffic(name: string, config?: MetaCampaignConfig): MetaCampaignBuilder<'traffic'>
+```
+
+`MetaCampaignConfig` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `budget` | `Budget` | Campaign-level budget |
+| `bidding` | `BidStrategy` | Bidding strategy from `lowestCost()`, `costCap()`, etc. |
+| `status` | `'ACTIVE' \| 'PAUSED'` | Campaign status |
+| `startTime` | `string` | ISO 8601 start date |
+| `endTime` | `string` | ISO 8601 end date |
+
+```ts
+import { meta, daily, lowestCost } from '@upspawn/ads'
+
+const campaign = meta.traffic('Traffic - US', {
+  budget: daily(15),
+  bidding: lowestCost(),
+})
+```
+
+---
+
+### `.adSet(name, config, content)`
+
+Add an ad set. The `optimization` field is constrained by campaign objective type.
+
+```ts
+builder.adSet(
+  name: string,
+  config: AdSetConfig<T>,
+  content: AdSetContent,
+): MetaCampaignBuilder<T>
+```
+
+`AdSetConfig` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `targeting` | `MetaTargeting` | Required — from `metaTargeting()` |
+| `optimization` | objective-specific union | Type-safe optimization goal |
+| `bidding` | `BidStrategy` | Override campaign-level bidding |
+| `budget` | `Budget` | Override campaign-level budget |
+| `placements` | `MetaPlacements` | `automatic()` or `manual()` |
+| `startTime` | `string` | ISO 8601 |
+| `endTime` | `string` | ISO 8601 |
+
+`AdSetContent` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ads` | `MetaCreative[]` | Array of `metaImage()`, `metaVideo()`, `carousel()`, etc. |
+| `url` | `string` | Default destination URL |
+| `cta` | `MetaCTA` | Default call-to-action |
+
+```ts
+campaign.adSet(
+  'Website Visitors',
+  {
+    targeting: metaTargeting(geo('US'), age(25, 55)),
+    optimization: 'LINK_CLICKS',
+  },
+  {
+    url: 'https://example.com',
+    cta: 'SIGN_UP',
+    ads: [
+      metaImage('./assets/hero.png', {
+        headline: 'Try It Free',
+        primaryText: 'The fastest way to rename your files.',
+      }),
+    ],
+  },
 )
 ```
 
-### `.callouts(...texts)`
+---
 
-Adds callout extensions. Max 25 chars each.
+## Ad Helpers
+
+### `headlines(...texts)`
+
+Create validated RSA headlines. Each must be 30 characters or fewer.
 
 ```ts
-campaign.callouts('No Credit Card', 'Free Plan', 'Cancel Anytime')
+function headlines(...texts: string[]): Headline[]
+```
+
+```ts
+import { headlines } from '@upspawn/ads'
+
+headlines('Rename Files Fast', 'AI File Renamer', 'Batch Rename Tool')
 ```
 
 ---
 
-## Meta
+### `descriptions(...texts)`
 
-### `meta.traffic(name, config)`
-### `meta.conversions(name, config)`
-### `meta.leads(name, config)`
-### `meta.awareness(name, config)`
-
-Creates a Meta campaign builder for the given objective.
+Create validated RSA descriptions. Each must be 90 characters or fewer.
 
 ```ts
-import { meta } from '@upspawn/ads'
-
-const campaign = meta.traffic('Campaign Name', {
-  budget: daily(30),
-  bidding: lowestCost(),
-  status: 'ACTIVE',
-})
+function descriptions(...texts: string[]): Description[]
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `budget` | `Budget` | Daily, monthly, or lifetime budget |
-| `bidding` | `MetaBiddingStrategy` | Bidding strategy |
-| `status` | `'ACTIVE' \| 'PAUSED'` | Campaign status |
+```ts
+import { descriptions } from '@upspawn/ads'
 
-### `.adSet(name, config)`
+descriptions(
+  'Rename thousands of files in seconds with AI-powered rules.',
+  'Try free. No credit card required.',
+)
+```
 
-Adds an ad set. The `optimization` field is type-safe based on campaign objective.
+---
+
+### `rsa(headlines, descriptions, url, options?)`
+
+Build a Responsive Search Ad. Requires 3–15 headlines and 2–4 descriptions.
 
 ```ts
-campaign.adSet('Ad Set Name', {
-  targeting: [geo('US'), languages('en')],
-  interests: [interests('technology')],
-  optimization: 'LINK_CLICKS',  // constrained by objective type
-  ad: {
-    creative: image('./assets/hero.png', { /* ... */ }),
+function rsa(
+  headlineList: Headline[],
+  descriptionList: Description[],
+  urlResult: { finalUrl: string; utm?: UTMParams },
+  options?: {
+    pinnedHeadlines?: PinnedHeadline[]
+    pinnedDescriptions?: PinnedDescription[]
+    path1?: string     // max 15 chars
+    path2?: string     // max 15 chars
+    mobileUrl?: string
+    trackingTemplate?: string
   },
-})
+): RSAd
 ```
-
----
-
-## Budget helpers
-
-```ts
-import { daily, monthly, lifetime, eur, usd } from '@upspawn/ads'
-
-daily(20)           // $20/day
-daily(eur(15))      // €15/day
-monthly(500)        // $500/month
-lifetime(1000)      // $1,000 lifetime
-```
-
----
-
-## Keyword helpers
-
-```ts
-import { exact, phrase, broad, keywords } from '@upspawn/ads'
-
-exact('keyword one', 'keyword two')   // Returns NegativeKeyword[]
-phrase('keyword phrase')
-broad('keyword term')
-
-// Spread into keywords array:
-keywords: [...exact('a'), ...phrase('b'), ...broad('c')]
-```
-
----
-
-## Ad helpers
 
 ```ts
 import { headlines, descriptions, rsa, url } from '@upspawn/ads'
 
 rsa(
-  headlines(
-    'Headline One',     // ≤ 30 chars (validated at construction)
-    'Headline Two',
-    'Headline Three',
-  ),
-  descriptions(
-    'Description one — up to 90 characters.',
-    'Description two.',
-  ),
-  url('https://example.com/page'),
+  headlines('Rename Files Fast', 'AI File Renamer', 'Batch Rename Tool'),
+  descriptions('Rename thousands of files in seconds.', 'Try free today.'),
+  url('https://example.com'),
+  {
+    pinnedHeadlines: [{ text: 'Rename Files Fast', position: 1 }],
+    path1: 'rename',
+    path2: 'files',
+  },
 )
 ```
 
-`headlines()` accepts 3–15 strings. `descriptions()` accepts 2–4 strings. Both validate character limits using branded types — invalid values are TypeScript errors.
-
 ---
 
-## Extension helpers
+### `responsiveDisplay(config)`
+
+Build a Responsive Display Ad for Display campaigns.
 
 ```ts
-import { link, sitelinks, callouts } from '@upspawn/ads'
+function responsiveDisplay(config: {
+  headlines: string[]         // 1–5 headlines, each max 30 chars
+  longHeadline: string        // max 90 chars
+  descriptions: string[]      // 1–5 descriptions
+  businessName: string
+  finalUrl: string
+  marketingImages: ImageRef[] // landscape 1.91:1 images
+  squareMarketingImages: ImageRef[]
+  logoImages?: ImageRef[]
+  squareLogoImages?: ImageRef[]
+  callToAction?: string
+  mainColor?: string
+  accentColor?: string
+}): ResponsiveDisplayAd
+```
 
-// Used with .sitelinks()
-link('Label', 'https://example.com/page', {
-  description1: 'Optional line 1',  // ≤ 35 chars
-  description2: 'Optional line 2',  // ≤ 35 chars
+```ts
+import { responsiveDisplay, landscape, square } from '@upspawn/ads'
+
+responsiveDisplay({
+  headlines: ['Rename Files Fast', 'AI Powered'],
+  longHeadline: 'Rename All Your Files in Seconds with AI',
+  descriptions: ['Try renamed.to free'],
+  businessName: 'example.com',
+  finalUrl: 'https://example.com',
+  marketingImages: [landscape('./hero.png')],
+  squareMarketingImages: [square('./hero-square.png')],
 })
 ```
 
 ---
 
-## Targeting helpers
+### `demandGenMultiAsset(config)`
+
+Build a Demand Gen multi-asset ad. Google assembles headlines, descriptions, and images into the best combinations.
 
 ```ts
-import { geo, languages, weekdays, hours, targeting, audiences } from '@upspawn/ads'
-
-geo('US', 'CA', 'GB')              // Country targeting by ISO code
-languages('en', 'de')              // Language targeting by ISO code
-weekdays()                         // Mon–Fri schedule
-hours(9, 17)                       // Hours 9am–5pm
-
-// Compose into a Targeting object:
-targeting(
-  geo('US'),
-  languages('en'),
-  weekdays(),
-)
+function demandGenMultiAsset(config: {
+  headlines: string[]            // max 5, each max 40 chars
+  descriptions: string[]         // max 5, each max 90 chars
+  businessName: string
+  finalUrl: string
+  marketingImages?: ImageRef[]   // landscape 1.91:1
+  squareMarketingImages?: ImageRef[]
+  portraitMarketingImages?: ImageRef[]
+  logoImages?: ImageRef[]
+  callToAction?: string
+}): DemandGenMultiAssetAd
 ```
 
 ---
 
-## Negatives helper
+### `demandGenCarousel(config)`
+
+Build a Demand Gen carousel ad. Minimum 2, maximum 10 cards.
+
+```ts
+function demandGenCarousel(config: Omit<DemandGenCarouselAd, 'type'>): DemandGenCarouselAd
+```
+
+---
+
+### `carouselCard(config)`
+
+Build a single card for a Demand Gen carousel.
+
+```ts
+function carouselCard(config: {
+  headline: string
+  finalUrl: string
+  marketingImage?: ImageRef
+  squareMarketingImage?: ImageRef
+  callToAction?: string
+}): DemandGenCarouselCard
+```
+
+---
+
+### `smartAd(config)`
+
+Build a Smart Campaign ad. Requires exactly 3 headlines and 2 descriptions.
+
+```ts
+function smartAd(config: {
+  headlines: [string, string, string]   // exactly 3, max 30 chars each
+  descriptions: [string, string]        // exactly 2, max 90 chars each
+}): SmartCampaignAd
+```
+
+---
+
+### `appAd(config)`
+
+Build an App Campaign ad asset set.
+
+```ts
+function appAd(config: {
+  headlines: string[]    // max 5, each max 30 chars
+  descriptions: string[] // max 5, each max 90 chars
+  images?: ImageRef[]
+  videos?: string[]      // YouTube URLs
+}): AppAdInfo
+```
+
+---
+
+## Keyword Helpers
+
+### `exact(...args)`, `phrase(...args)`, `broad(...args)`
+
+Create typed keywords with a specific match type.
+
+```ts
+function exact(...args: KeywordInput[]): ExactKeyword[]
+function phrase(...args: KeywordInput[]): PhraseKeyword[]
+function broad(...args: KeywordInput[]): BroadKeyword[]
+```
+
+`KeywordInput` is `string` or `{ text: string; bid?: number; finalUrl?: string; status?: string }`.
+
+```ts
+import { exact, phrase, broad } from '@upspawn/ads'
+
+exact('rename files', 'batch rename')
+phrase('file renaming tool', 'rename pdf')
+broad('file organization', 'document management')
+
+// With per-keyword bid:
+exact({ text: 'rename files', bid: 1.50 })
+```
+
+---
+
+### `keywords(...texts)`
+
+Parse keywords from bracket notation. `[text]` = exact, `"text"` = phrase, bare text = broad.
+
+```ts
+function keywords(...texts: string[]): Keyword[]
+```
+
+```ts
+import { keywords } from '@upspawn/ads'
+
+keywords('[rename files]', '"file renaming tool"', 'document management')
+
+// Or as a template literal:
+keywords(`
+  [rename files]
+  [batch rename]
+  "file renaming tool"
+  document management
+`)
+```
+
+---
+
+## Budget Helpers
+
+### `daily(amount, currency?)`
+
+Daily budget. Default currency: `'EUR'`.
+
+```ts
+function daily(amount: number, currency?: 'EUR' | 'USD'): DailyBudget
+```
+
+```ts
+import { daily } from '@upspawn/ads'
+
+daily(20)          // €20/day
+daily(15, 'USD')   // $15/day
+```
+
+---
+
+### `monthly(amount, currency?)`
+
+Monthly budget. The engine converts to a daily amount.
+
+```ts
+function monthly(amount: number, currency?: 'EUR' | 'USD'): MonthlyBudget
+```
+
+---
+
+### `lifetime(amount, endTime, currency?)`
+
+Lifetime budget with a fixed end date. Used for Meta campaigns with a defined flight.
+
+```ts
+function lifetime(amount: number, endTime: string, currency?: 'EUR' | 'USD'): LifetimeBudget
+```
+
+```ts
+import { lifetime } from '@upspawn/ads'
+
+lifetime(500, '2026-04-01')
+lifetime(1000, '2026-06-30T23:59:59Z', 'USD')
+```
+
+---
+
+### `eur(amount)`, `usd(amount)`
+
+Branded currency shorthands for compile-time type checking.
+
+```ts
+function eur(amount: number): number & { __currency: 'EUR' }
+function usd(amount: number): number & { __currency: 'USD' }
+```
+
+---
+
+## Targeting Helpers
+
+These are covered in detail at [Targeting Helpers](/docs/reference/targeting). Quick reference:
+
+| Helper | Description |
+|--------|-------------|
+| `targeting(...rules)` | Compose rules into a `Targeting` object |
+| `geo(...countries)` | Country targeting |
+| `regions(...names)` | Region/state targeting |
+| `cities(...names)` | City targeting |
+| `radius(lat, lng, km)` | Radius targeting |
+| `presence(mode)` | Location presence mode |
+| `languages(...langs)` | Language targeting |
+| `weekdays()` | Mon–Fri schedule |
+| `hours(start, end)` | Hour range |
+| `scheduleBid(day, start, end, adj)` | Day/hour bid adjustment |
+| `device(type, adj)` | Device bid adjustment |
+| `demographics(opts)` | Age, gender, income, parental status |
+| `audiences(...refs)` | Audience observation mode |
+| `audienceTargeting(...refs)` | Audience targeting mode |
+| `remarketing(id, opts?)` | Remarketing list ref |
+| `customAudience(id, opts?)` | Custom audience ref |
+| `inMarket(id, opts?)` | In-market segment ref |
+| `affinity(id, opts?)` | Affinity segment ref |
+| `customerMatch(id, opts?)` | Customer match list ref |
+| `placements(...urls)` | Display placement targeting |
+| `topics(...names)` | Display topic targeting |
+| `contentKeywords(...kws)` | Display contextual targeting |
+
+---
+
+## Extension Helpers
+
+Covered in detail at [Extensions](/docs/reference/extensions). Quick reference:
+
+| Helper | Description |
+|--------|-------------|
+| `link(text, url, opts?)` | Single sitelink — text ≤25, desc ≤35 chars |
+| `sitelinks(...links)` | Bundle multiple sitelinks |
+| `callouts(...texts)` | Callout strings — each ≤25 chars |
+| `snippet(header, ...values)` | Structured snippet — 3–10 values |
+| `call(phone, country, callOnly?)` | Call extension |
+| `price(items, qualifier?)` | Price extension — 3–8 items |
+| `promotion(config)` | Promotion extension |
+| `image(url, altText?)` | Image extension |
+
+---
+
+## Image Asset Helpers
+
+Used for Google Display, Performance Max, and Demand Gen campaigns.
+
+### `landscape(path)` — 1.91:1 aspect ratio
+### `square(path)` — 1:1 aspect ratio
+### `portrait(path)` — 4:5 aspect ratio
+### `logo(path)` — square logo, 1:1
+### `logoLandscape(path)` — landscape logo, 4:1
+
+```ts
+function landscape(path: string): ImageRef
+function square(path: string): ImageRef
+function portrait(path: string): ImageRef
+function logo(path: string): ImageRef
+function logoLandscape(path: string): ImageRef
+```
+
+```ts
+import { landscape, square, portrait, logo, logoLandscape } from '@upspawn/ads'
+
+landscape('./images/hero-landscape.png')
+square('./images/hero-square.png')
+portrait('./images/hero-portrait.png')
+logo('./images/logo.png')
+logoLandscape('./images/logo-wide.png')
+```
+
+All return an `ImageRef` object: `{ type: 'image-ref', path, aspectRatio }`.
+
+---
+
+## URL and Negatives
+
+### `url(finalUrl, utm?)`
+
+Create a URL with optional UTM tracking parameters. URL must start with `http://` or `https://`.
+
+```ts
+function url(finalUrl: string, utm?: UTMParams): UrlResult
+```
+
+```ts
+import { url } from '@upspawn/ads'
+
+url('https://example.com')
+
+url('https://example.com', {
+  source: 'google',
+  medium: 'cpc',
+  campaign: 'brand-search',
+  content: 'headline-a',
+  term: '{keyword}',
+})
+```
+
+---
+
+### `negatives(...texts)`
+
+Create negative keywords (broad match). Deduplicates by lowercased text.
+
+```ts
+function negatives(...texts: string[]): Keyword[]
+```
 
 ```ts
 import { negatives } from '@upspawn/ads'
 
-// Returns an array of negative keywords (broad match by default)
-const shared = negatives('free', 'download', 'tutorial')
+negatives('free', 'open source', 'crack', 'download')
+// [{ text: 'free', matchType: 'BROAD' }, ...]
 ```
-
-Use with campaign-level `negatives` field or spread into `.group()` keywords.
 
 ---
 
-## Meta creative helpers
+## Meta Helpers
+
+### Creative helpers
+
+| Export | Description |
+|--------|-------------|
+| `metaImage(filePath, config?)` | Image ad creative |
+| `metaVideo(filePath, config?)` | Video ad creative |
+| `carousel(cards, config)` | Carousel ad — 2–10 cards |
+| `boostedPost(name?)` | Boosted page post |
+
+See the source in `src/helpers/meta-creative.ts`.
 
 ```ts
-import { image, video, carousel } from '@upspawn/ads'
+import { metaImage, metaVideo, carousel } from '@upspawn/ads'
 
-// Image ad
-image('./assets/hero.png', {
-  headline: 'Try It Free',
-  primaryText: 'The fastest way to get X done.',
+metaImage('./hero.png', {
+  headline: 'Rename Files Instantly',
+  primaryText: 'Stop wasting hours organizing files manually.',
   cta: 'SIGN_UP',
-  url: 'https://example.com',
 })
 
-// Video ad
-video('./assets/demo.mp4', {
-  thumbnail: './assets/thumb.png',
-  headline: 'See How It Works',
-  primaryText: 'Watch our 60-second demo.',
-  cta: 'WATCH_MORE',
-  url: 'https://example.com/demo',
-})
-
-// Carousel
-carousel({
-  primaryText: 'Discover our features',
-  cards: [
-    { image: './assets/f1.png', headline: 'Feature 1', url: 'https://example.com/1' },
-    { image: './assets/f2.png', headline: 'Feature 2', url: 'https://example.com/2' },
+carousel(
+  [
+    { image: './a.png', headline: 'Step 1', url: 'https://example.com/step-1' },
+    { image: './b.png', headline: 'Step 2', url: 'https://example.com/step-2' },
   ],
+  { primaryText: 'See how it works in 3 simple steps' },
+)
+```
+
+### Targeting helpers
+
+| Export | Description |
+|--------|-------------|
+| `metaTargeting(...rules)` | Compose Meta targeting |
+| `age(min, max)` | Age range 13–65 |
+| `audience(nameOrId)` | Custom audience by name or ID |
+| `excludeAudience(nameOrId)` | Exclude audience |
+| `interests(...args)` | Interest targeting |
+| `lookalike(source, config)` | Lookalike audience |
+
+See [Targeting Helpers — Meta Targeting](/docs/reference/targeting#meta-targeting) for full details.
+
+### Bidding helpers
+
+| Export | Description |
+|--------|-------------|
+| `lowestCost()` | No cap (default) |
+| `costCap(amount)` | Average cost per result cap |
+| `bidCap(amount)` | Max bid per auction |
+| `minRoas(floor)` | Minimum ROAS multiplier |
+
+See [Bidding Strategies — Meta](/docs/reference/bidding-strategies#meta-bidding-strategies) for full details.
+
+### Placement helpers
+
+| Export | Description |
+|--------|-------------|
+| `automatic()` | Advantage+ automatic placements (recommended) |
+| `manual(platforms, positions?)` | Manual platform/position selection |
+
+```ts
+import { automatic, manual } from '@upspawn/ads'
+
+automatic()
+
+manual(['facebook', 'instagram'], ['feed', 'story'])
+
+manual(['facebook', 'instagram'], {
+  facebookPositions: ['feed', 'story'],
+  instagramPositions: ['stream', 'story', 'reels'],
 })
 ```
 
 ---
 
-## Meta targeting helpers
+## Account-Level Resources
+
+These are exported as top-level campaign files (not inside `campaigns/`).
+
+### `sharedNegatives(name, keywords)`
+
+Create a shared negative keyword list that can be linked to multiple campaigns. Google limits accounts to 20 shared lists, each with up to 5,000 keywords.
 
 ```ts
-import { interests, behaviors } from '@upspawn/ads'
+function sharedNegatives(name: string, keywords: Keyword[]): SharedNegativeList
+```
 
-// Use interest/behavior names from `ads search interests` / `ads search behaviors`
-interests('technology', 'software as a service')
-behaviors('small business owners')
+```ts
+import { sharedNegatives, negatives, exact } from '@upspawn/ads'
+
+export default sharedNegatives('Brand Exclusions', [
+  ...negatives('free', 'cheap', 'open source', 'crack'),
+  ...exact('competitor brand'),
+])
 ```
 
 ---
 
-## Meta bidding helpers
+### `conversionAction(name, config)`
+
+Define a conversion action for Google Ads.
 
 ```ts
-import { lowestCost, costCap, bidCap, minimumRoas } from '@upspawn/ads'
+function conversionAction(
+  name: string,
+  config: {
+    type: 'webpage' | 'ad-call' | 'click-to-call' | 'import'
+    category: 'purchase' | 'signup' | 'lead' | 'page-view' | 'download' | 'add-to-cart' | 'begin-checkout' | 'subscribe' | 'contact' | 'other'
+    counting: 'one-per-click' | 'many-per-click'
+    value?: { default?: number; currency?: string; useDynamic?: boolean }
+    attribution?: 'last-click' | 'data-driven'
+    lookbackDays?: number
+    primary?: boolean
+  },
+): ConversionActionConfig
+```
 
-lowestCost()          // Let Meta optimize spend
-costCap(15)           // Max cost per result
-bidCap(10)            // Max bid per auction
-minimumRoas(2.0)      // Minimum return on ad spend
+```ts
+import { conversionAction } from '@upspawn/ads'
+
+export default conversionAction('Website Signup', {
+  type: 'webpage',
+  category: 'signup',
+  counting: 'one-per-click',
+  value: { default: 10, currency: 'EUR' },
+  attribution: 'data-driven',
+})
 ```
 
 ---
 
-## AI namespace
+### `sharedBudget(name, budget)`
+
+Create a shared budget that multiple campaigns can reference. Google distributes spend dynamically to higher-performing campaigns.
+
+```ts
+function sharedBudget(
+  name: string,
+  budget: { amount: number; currency: string; period: 'daily' },
+): SharedBudgetConfig
+```
+
+```ts
+import { sharedBudget, daily } from '@upspawn/ads'
+
+export default sharedBudget('Search Campaigns Budget', daily(50))
+```
+
+---
+
+## AI Module
+
+The `ai` namespace provides markers for AI-generated content. Markers are inert tags — the actual LLM call happens during `ads generate`.
 
 ```ts
 import { ai } from '@upspawn/ads'
+```
 
-// In RSA position
-ai.rsa('Write copy for a file renaming tool targeting accountants')
+### `ai.rsa(prompt)`
 
-// In keywords array
+Replace an RSA with AI-generated headlines and descriptions.
+
+```ts
+ai.rsa('Write copy for a file renaming tool targeting freelance designers')
+ai.rsa({ prompt: 'Write headlines', url: 'https://example.com', context: 'B2B SaaS' })
+```
+
+### `ai.keywords(prompt)`
+
+Replace a keywords array with AI-generated keywords.
+
+```ts
 ai.keywords('Suggest keywords for PDF automation tools')
+```
 
-// Meta copy (in place of image/video config fields)
-ai.metaCopy('Write Meta ad copy for SaaS productivity tool')
+### `ai.metaCopy(prompt)`
 
-// Meta interests
-ai.interests('Suggest interests for B2B SaaS targeting')
+Replace Meta ad copy fields with AI-generated content.
+
+```ts
+ai.metaCopy('Write a Meta ad for cloud storage targeting small business owners')
+ai.metaCopy({ prompt: '...', objective: 'traffic', cta: 'SIGN_UP' })
+```
+
+### `ai.interests(prompt)`
+
+Replace a Meta interests array with AI-suggested interests.
+
+```ts
+ai.interests('Suggest Meta interests for B2B SaaS productivity tool')
 ```
 
 See [AI Generation](/docs/guides/ai-generation) for the full workflow.
 
 ---
 
-## `defineConfig(config)`
+## Assets
 
-Identity function for typed `ads.config.ts` files.
+### `asset(filePath, options?)`
+
+Create an asset marker for deferred resolution. Used when the same asset file needs to be shared across ad sets without re-uploading.
+
+```ts
+function asset(filePath: string, options?: AssetOptions): AssetMarker
+```
+
+---
+
+## Config
+
+### `defineConfig(config)`
+
+Identity function for `ads.config.ts` files. Provides type-checking and autocompletion.
+
+```ts
+function defineConfig(config: AdsConfig): AdsConfig
+```
 
 ```ts
 import { defineConfig } from '@upspawn/ads'
 
 export default defineConfig({
   google: {
-    customerId: '1234567890',
-    managerId: '0987654321',
+    customerId: 'YOUR_CUSTOMER_ID',
+    managerId: 'YOUR_MANAGER_ID',
   },
   meta: {
-    accountId: '1234567890',
-    pageId: '9876543210',
+    accountId: 'YOUR_ACCOUNT_ID',
+    pageId: 'YOUR_PAGE_ID',
   },
 })
 ```

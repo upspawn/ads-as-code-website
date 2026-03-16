@@ -1,0 +1,430 @@
+---
+title: Extensions
+description: Sitelinks, callouts, structured snippets, call, price, promotion, and image extensions for Google Search campaigns.
+---
+
+Extensions add extra information to your ads. All extension helpers are imported from `@upspawn/ads` and attached to a campaign via chainable builder methods.
+
+---
+
+## Sitelinks
+
+Sitelinks show additional links below your main ad. Google typically shows 2–6 sitelinks per ad.
+
+### `link(text, url, options?)`
+
+Create a single sitelink. Text must be 25 characters or fewer. Each description line must be 35 characters or fewer.
+
+```ts
+function link(
+  text: string,
+  url: string,
+  options?: { description1?: string; description2?: string },
+): Sitelink
+```
+
+**Limits:**
+
+| Field | Max length |
+|-------|------------|
+| `text` | 25 characters |
+| `description1` | 35 characters |
+| `description2` | 35 characters |
+
+```ts
+import { link } from '@upspawn/ads'
+
+// Simple sitelink
+link('Pricing', 'https://example.com/pricing')
+
+// With description lines
+link('How It Works', 'https://example.com/how-it-works', {
+  description1: 'See the AI renaming engine in action',
+  description2: 'Works with any file type',
+})
+```
+
+Throws if any limit is exceeded.
+
+---
+
+### `sitelinks(...links)`
+
+Bundle multiple `link()` objects. A convenience wrapper for readability — returns the same array.
+
+```ts
+function sitelinks(...links: Sitelink[]): Sitelink[]
+```
+
+```ts
+import { sitelinks, link } from '@upspawn/ads'
+
+sitelinks(
+  link('Pricing', 'https://example.com/pricing'),
+  link('Features', 'https://example.com/features'),
+  link('Blog', 'https://example.com/blog'),
+)
+```
+
+---
+
+### `.sitelinks()` on a campaign builder
+
+Attach sitelinks to a Search campaign. Replaces any previously set sitelinks.
+
+```ts
+import { google, daily, link } from '@upspawn/ads'
+
+export default google.search('Brand', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .sitelinks(
+    link('Pricing', 'https://example.com/pricing', {
+      description1: 'Free plan available',
+      description2: 'No credit card required',
+    }),
+    link('Features', 'https://example.com/features'),
+    link('Documentation', 'https://docs.example.com'),
+    link('Contact', 'https://example.com/contact'),
+  )
+```
+
+---
+
+## Callouts
+
+Callout extensions show short phrases below your ad (e.g. "Free Trial", "No Credit Card"). Google shows up to 4 callouts at a time.
+
+### `callouts(...texts)`
+
+Create an array of validated callout strings. Each must be 25 characters or fewer.
+
+```ts
+function callouts(...texts: string[]): CalloutText[]
+```
+
+**Limit:** 25 characters per callout.
+
+```ts
+import { callouts } from '@upspawn/ads'
+
+callouts('Free Trial', 'No Credit Card', 'AI-Powered', 'Cancel Anytime')
+```
+
+Throws if any callout exceeds 25 characters.
+
+---
+
+### `.callouts()` on a campaign builder
+
+Attach callouts directly on the campaign builder. Validates the 25-character limit internally.
+
+```ts
+campaign.callouts('Free Trial', 'No Credit Card', 'AI-Powered')
+```
+
+---
+
+## Structured Snippets
+
+Structured snippets display a predefined header with a list of values (e.g. "Types: Files, Folders, Documents").
+
+### `snippet(header, ...values)`
+
+Create a structured snippet. Requires 3–10 values, each 25 characters or fewer.
+
+```ts
+function snippet(header: string, ...values: string[]): StructuredSnippet
+```
+
+**Limits:**
+
+| Field | Constraint |
+|-------|-----------|
+| `values` count | 3–10 |
+| Each value | Max 25 characters |
+
+**Common headers:** `Amenities`, `Brands`, `Courses`, `Degree programs`, `Destinations`, `Featured hotels`, `Insurance coverage`, `Models`, `Neighborhoods`, `Service catalog`, `Shows`, `Styles`, `Types`
+
+```ts
+import { snippet } from '@upspawn/ads'
+
+snippet('Types', 'Files', 'Folders', 'Documents', 'Photos')
+snippet('Features', 'AI-Powered', 'Batch Rename', 'Rules Engine', 'Preview Mode')
+snippet('Brands', 'renamed.to', 'FileRenamer Pro', 'BatchTool')
+```
+
+---
+
+### `.snippets()` on a campaign builder
+
+Attach structured snippets to a campaign.
+
+```ts
+import { google, daily, snippet } from '@upspawn/ads'
+
+export default google.search('Brand', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .snippets(
+    snippet('Types', 'Files', 'Folders', 'Documents', 'Photos'),
+    snippet('Features', 'Batch Rename', 'AI-Powered', 'Rules Engine', 'Undo'),
+  )
+```
+
+---
+
+## Call Extensions
+
+Call extensions add your phone number to the ad, allowing users to call directly.
+
+### `call(phoneNumber, countryCode, callOnly?)`
+
+Create a call extension.
+
+```ts
+function call(
+  phoneNumber: string,
+  countryCode: string,
+  callOnly?: boolean,
+): CallExtension
+```
+
+- `callOnly`: If `true`, the ad shows only a phone number with no website link.
+
+```ts
+import { call } from '@upspawn/ads'
+
+call('+1-800-555-0123', 'US')           // standard call extension
+call('+49-30-1234567', 'DE', true)      // call-only (no website link)
+```
+
+---
+
+### `.calls()` on a campaign builder
+
+```ts
+import { google, daily, call } from '@upspawn/ads'
+
+export default google.search('Brand', {
+  budget: daily(20),
+  bidding: 'maximize-clicks',
+})
+  .calls(
+    call('+1-800-555-0123', 'US'),
+  )
+```
+
+---
+
+## Price Extensions
+
+Price extensions show a table of products or services with prices.
+
+### `price(items, qualifier?)`
+
+Create a price extension with 3–8 items.
+
+```ts
+function price(
+  items: Array<{
+    header: string          // max 25 characters
+    description: string
+    price: string
+    unit?: 'per-hour' | 'per-day' | 'per-week' | 'per-month' | 'per-year'
+    url: string
+  }>,
+  qualifier?: 'from' | 'up-to' | 'average',
+): PriceExtension
+```
+
+**Limits:**
+
+| Field | Constraint |
+|-------|-----------|
+| `items` count | 3–8 |
+| `header` | Max 25 characters |
+
+```ts
+import { price } from '@upspawn/ads'
+
+price(
+  [
+    { header: 'Starter', description: 'For individuals', price: '$9/mo', url: 'https://example.com/pricing' },
+    { header: 'Pro', description: 'For teams', price: '$29/mo', url: 'https://example.com/pricing' },
+    { header: 'Enterprise', description: 'Custom pricing', price: 'Contact us', url: 'https://example.com/pricing' },
+  ],
+  'from',
+)
+```
+
+---
+
+### `.prices()` on a campaign builder
+
+```ts
+campaign.prices(
+  price([
+    { header: 'Starter', description: 'For individuals', price: '$9/mo', url: '/pricing' },
+    { header: 'Pro', description: 'For teams', price: '$29/mo', url: '/pricing' },
+    { header: 'Enterprise', description: 'Custom', price: '$99/mo', url: '/pricing' },
+  ])
+)
+```
+
+---
+
+## Promotion Extensions
+
+Promotion extensions highlight sales, discounts, and special offers.
+
+### `promotion(config)`
+
+Create a promotion extension.
+
+```ts
+function promotion(config: {
+  discountType: 'monetary' | 'percent'
+  discountAmount?: number
+  discountPercent?: number
+  occasion?: string
+  promotionCode?: string
+  ordersOverAmount?: number
+  startDate?: string
+  endDate?: string
+  url: string
+}): PromotionExtension
+```
+
+```ts
+import { promotion } from '@upspawn/ads'
+
+// Percentage discount
+promotion({
+  discountType: 'percent',
+  discountPercent: 20,
+  occasion: 'BLACK_FRIDAY',
+  url: 'https://example.com/pricing',
+})
+
+// Monetary discount with code
+promotion({
+  discountType: 'monetary',
+  discountAmount: 10,
+  promotionCode: 'SAVE10',
+  startDate: '2026-11-25',
+  endDate: '2026-11-30',
+  url: 'https://example.com/pricing',
+})
+```
+
+---
+
+### `.promotions()` on a campaign builder
+
+```ts
+campaign.promotions(
+  promotion({
+    discountType: 'percent',
+    discountPercent: 25,
+    url: 'https://example.com/sale',
+  })
+)
+```
+
+---
+
+## Image Extensions
+
+Image extensions add a visual to your text ads.
+
+### `image(imageUrl, altText?)`
+
+Create an image extension.
+
+```ts
+function image(imageUrl: string, altText?: string): ImageExtension
+```
+
+```ts
+import { image } from '@upspawn/ads'
+
+image('https://example.com/ad-hero.png')
+image('https://example.com/product.png', 'Screenshot of the file renaming interface')
+```
+
+The `ImageExtension` type also supports a `squareImageUrl` field for square crops:
+
+```ts
+{
+  imageUrl: 'https://example.com/ad-hero.png',
+  squareImageUrl: 'https://example.com/ad-square.png',  // optional square crop
+  altText: 'Alt text',
+}
+```
+
+---
+
+### `.images()` on a campaign builder
+
+```ts
+campaign.images(
+  image('https://example.com/hero.png', 'Product screenshot'),
+)
+```
+
+---
+
+## Full Example
+
+```ts
+import {
+  google,
+  daily,
+  targeting,
+  geo,
+  languages,
+  negatives,
+  exact,
+  phrase,
+  headlines,
+  descriptions,
+  rsa,
+  url,
+  link,
+  callouts,
+  snippet,
+  call,
+  price,
+  promotion,
+} from '@upspawn/ads'
+
+export default google.search('Brand Campaign', {
+  budget: daily(25),
+  bidding: 'maximize-conversions',
+  targeting: targeting(geo('US', 'CA'), languages('en')),
+  negatives: negatives('free', 'open source'),
+})
+  .group('brand-exact', {
+    keywords: exact('example app', 'my brand'),
+    ad: rsa(
+      headlines('Official Site', 'Try It Free', 'No Credit Card'),
+      descriptions('The fastest way to get X done.', 'Free trial available today.'),
+      url('https://example.com'),
+    ),
+  })
+  .sitelinks(
+    link('Pricing', 'https://example.com/pricing', {
+      description1: 'Free plan available',
+      description2: 'No credit card required',
+    }),
+    link('Features', 'https://example.com/features'),
+    link('Blog', 'https://example.com/blog'),
+    link('Contact', 'https://example.com/contact'),
+  )
+  .callouts('Free Trial', 'No Credit Card', 'AI-Powered', 'Cancel Anytime')
+  .snippets(snippet('Types', 'Files', 'Folders', 'Documents', 'Photos'))
+  .calls(call('+1-800-555-0123', 'US'))
+```

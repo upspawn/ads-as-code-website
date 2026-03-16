@@ -1,0 +1,332 @@
+---
+title: Bidding Strategies
+description: All Google and Meta bidding strategies with configuration examples.
+---
+
+Bidding strategies control how Google or Meta spends your budget. Every campaign requires a `bidding` field.
+
+---
+
+## Google Bidding Strategies
+
+The `bidding` field on Google campaigns accepts either a string shorthand or a strategy object. The full `BiddingStrategy` type is:
+
+```ts
+type BiddingStrategy =
+  | { type: 'maximize-conversions' }
+  | { type: 'maximize-clicks'; maxCpc?: number }
+  | { type: 'manual-cpc'; enhancedCpc?: boolean }
+  | { type: 'manual-cpm' }
+  | { type: 'target-cpa'; targetCpa: number }
+  | { type: 'target-cpm' }
+  | { type: 'target-roas'; targetRoas: number }
+  | { type: 'target-impression-share'; location: 'anywhere' | 'top' | 'absolute-top'; targetPercent: number; maxCpc?: number }
+  | { type: 'maximize-conversion-value'; targetRoas?: number }
+```
+
+String shorthands expand automatically: `'maximize-conversions'` becomes `{ type: 'maximize-conversions' }`.
+
+---
+
+### `'maximize-conversions'`
+
+Let Google maximize the number of conversions within your budget. Requires conversion tracking to be set up.
+
+```ts
+bidding: 'maximize-conversions'
+// or
+bidding: { type: 'maximize-conversions' }
+```
+
+**Supported campaign types:** Search, Display, Shopping, Performance Max, Demand Gen
+
+---
+
+### `'maximize-clicks'`
+
+Let Google maximize click volume within your budget. Useful for driving traffic when conversion data is limited.
+
+```ts
+bidding: 'maximize-clicks'
+
+// With a max CPC cap (in your account currency):
+bidding: { type: 'maximize-clicks', maxCpc: 2.50 }
+```
+
+> Note: The Google Ads API maps "Maximize Clicks" to the `TARGET_SPEND` enum (value 10), not `MAXIMIZE_CLICKS` (11). The SDK handles this translation automatically.
+
+**Supported campaign types:** Search, Shopping, Display
+
+---
+
+### `'maximize-conversion-value'`
+
+Let Google maximize the total conversion value (revenue) within your budget. Can optionally set a target ROAS.
+
+```ts
+bidding: 'maximize-conversion-value'
+
+// With a target ROAS:
+bidding: { type: 'maximize-conversion-value', targetRoas: 3.5 }
+```
+
+**Supported campaign types:** Search, Shopping, Performance Max
+
+---
+
+### `{ type: 'target-cpa', targetCpa: N }`
+
+Bid to achieve a target cost per conversion. `targetCpa` is in your account currency units (not micros).
+
+```ts
+bidding: { type: 'target-cpa', targetCpa: 15 }    // target €15 / conversion
+bidding: { type: 'target-cpa', targetCpa: 8.50 }  // target $8.50 / conversion
+```
+
+**Supported campaign types:** Search, Display, Performance Max
+
+---
+
+### `{ type: 'target-roas', targetRoas: N }`
+
+Bid to achieve a target return on ad spend. `targetRoas` is a multiplier (not a percentage).
+
+```ts
+bidding: { type: 'target-roas', targetRoas: 3.5 }  // target 350% ROAS (3.5x return)
+bidding: { type: 'target-roas', targetRoas: 1.0 }  // break-even (100% ROAS)
+```
+
+> `targetRoas` is a raw double. `3.5` means €3.50 revenue per €1 spent (350%). Do NOT divide by 100 — the API accepts the multiplier directly.
+
+**Supported campaign types:** Search, Shopping, Performance Max
+
+---
+
+### `{ type: 'target-impression-share', ... }`
+
+Bid to achieve a target impression share (how often your ad appears for eligible searches).
+
+```ts
+bidding: {
+  type: 'target-impression-share',
+  location: 'anywhere',        // 'anywhere' | 'top' | 'absolute-top'
+  targetPercent: 80,           // target 80% impression share
+  maxCpc: 5.00,                // optional max CPC cap
+}
+```
+
+| `location` | Description |
+|------------|------------|
+| `'anywhere'` | Anywhere on the search results page |
+| `'top'` | Above organic results (top of page) |
+| `'absolute-top'` | Position 1 (very top of page) |
+
+**Supported campaign types:** Search
+
+---
+
+### `'manual-cpc'`
+
+Set bids manually per keyword. You control exactly how much you bid for each keyword.
+
+```ts
+bidding: 'manual-cpc'
+
+// With Enhanced CPC (Google adjusts bids for likely conversions):
+bidding: { type: 'manual-cpc', enhancedCpc: true }
+```
+
+**Supported campaign types:** Search, Display, Shopping
+
+---
+
+### `'manual-cpm'`
+
+Pay per thousand impressions. Used for brand awareness.
+
+```ts
+bidding: 'manual-cpm'
+// or
+bidding: { type: 'manual-cpm' }
+```
+
+**Supported campaign types:** Display
+
+---
+
+### `{ type: 'target-cpm' }`
+
+Target a specific cost per thousand impressions. Google optimizes delivery to hit the target CPM.
+
+```ts
+bidding: { type: 'target-cpm' }
+```
+
+**Supported campaign types:** Display, Demand Gen
+
+---
+
+## Google Strategy Compatibility Matrix
+
+| Strategy | Search | Display | Shopping | Performance Max | Demand Gen |
+|----------|--------|---------|----------|-----------------|------------|
+| `maximize-conversions` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `maximize-clicks` | ✓ | ✓ | ✓ | — | — |
+| `maximize-conversion-value` | ✓ | — | ✓ | ✓ | — |
+| `target-cpa` | ✓ | ✓ | — | ✓ | — |
+| `target-roas` | ✓ | — | ✓ | ✓ | — |
+| `target-impression-share` | ✓ | — | — | — | — |
+| `manual-cpc` | ✓ | ✓ | ✓ | — | — |
+| `manual-cpm` | — | ✓ | — | — | — |
+| `target-cpm` | — | ✓ | — | — | ✓ |
+
+---
+
+## Meta Bidding Strategies
+
+Meta bidding helpers are imported from `@upspawn/ads` and passed to the `bidding` field in `MetaCampaignConfig`.
+
+### `lowestCost()`
+
+Meta's default strategy. No cap — Meta finds the lowest cost results within your budget.
+
+```ts
+function lowestCost(): BidStrategy
+// returns: { type: 'LOWEST_COST_WITHOUT_CAP' }
+```
+
+```ts
+import { lowestCost } from '@upspawn/ads'
+
+meta.traffic('Campaign', { budget: daily(20), bidding: lowestCost() })
+```
+
+This is the default if `bidding` is omitted from `MetaCampaignConfig`.
+
+---
+
+### `costCap(amount)`
+
+Meta tries to keep the **average cost per result** at or below the cap. Some results may cost more, but the average stays at or below your cap.
+
+```ts
+function costCap(amount: number): BidStrategy
+// returns: { type: 'COST_CAP', cap: amount }
+```
+
+```ts
+import { costCap } from '@upspawn/ads'
+
+meta.traffic('Campaign', {
+  budget: daily(30),
+  bidding: costCap(10),  // average cost per click ≤ $10
+})
+```
+
+Throws if `amount` is not positive.
+
+---
+
+### `bidCap(amount)`
+
+Sets a hard cap — Meta will not bid more than this amount in any single auction.
+
+```ts
+function bidCap(amount: number): BidStrategy
+// returns: { type: 'BID_CAP', cap: amount }
+```
+
+```ts
+import { bidCap } from '@upspawn/ads'
+
+meta.traffic('Campaign', {
+  budget: daily(30),
+  bidding: bidCap(5),  // never bid more than $5 in any auction
+})
+```
+
+Throws if `amount` is not positive.
+
+---
+
+### `minRoas(floor)`
+
+Meta aims to meet or exceed the target ROAS. `floor` is a multiplier (e.g., `2.5` = 2.5x return).
+
+```ts
+function minRoas(floor: number): BidStrategy
+// returns: { type: 'MINIMUM_ROAS', floor: floor }
+```
+
+```ts
+import { minRoas } from '@upspawn/ads'
+
+meta.sales('Sales Campaign', {
+  budget: daily(50),
+  bidding: minRoas(2.5),  // target at least 2.5x return
+})
+```
+
+Throws if `floor` is not positive. Only valid for `sales` / `conversions` objectives with purchase conversion events.
+
+---
+
+## Meta Strategy Compatibility
+
+| Strategy | Awareness | Traffic | Engagement | Leads | Sales | App Promotion |
+|----------|-----------|---------|------------|-------|-------|---------------|
+| `lowestCost()` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `costCap(n)` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `bidCap(n)` | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `minRoas(n)` | — | — | — | — | ✓ | — |
+
+---
+
+## Full Example — Google Search with Target CPA
+
+```ts
+import { google, daily, targeting, geo, languages, negatives, exact, headlines, descriptions, rsa, url } from '@upspawn/ads'
+
+export default google.search('Search - Conversions', {
+  budget: daily(30),
+  bidding: { type: 'target-cpa', targetCpa: 12 },
+  targeting: targeting(geo('US', 'CA'), languages('en')),
+  negatives: negatives('free', 'open source'),
+})
+  .group('core', {
+    keywords: exact('file renaming tool', 'batch rename files'),
+    ad: rsa(
+      headlines('Rename Files Instantly', 'AI-Powered Renaming', 'Try Free Today'),
+      descriptions('Rename thousands of files in seconds.', 'Free trial. No credit card required.'),
+      url('https://example.com'),
+    ),
+  })
+```
+
+## Full Example — Meta Sales with Minimum ROAS
+
+```ts
+import { meta, daily, metaTargeting, geo, minRoas, metaImage } from '@upspawn/ads'
+
+export default meta.sales('Sales - US Retargeting', {
+  budget: daily(50),
+  bidding: minRoas(3.0),
+})
+  .adSet(
+    'Website Visitors',
+    {
+      targeting: metaTargeting(geo('US')),
+      optimization: 'VALUE',
+    },
+    {
+      url: 'https://example.com/checkout',
+      cta: 'SHOP_NOW',
+      ads: [
+        metaImage('./assets/hero.png', {
+          headline: 'Pick Up Where You Left Off',
+          primaryText: 'Your files are waiting. Finish renaming with one click.',
+        }),
+      ],
+    },
+  )
+```

@@ -1,9 +1,19 @@
 ---
 title: CLI Reference
-description: All ads-as-code CLI commands with flags and examples.
+description: All ads-as-code CLI commands with flags, examples, and sample output.
 ---
 
 The `ads` CLI is the main interface for interacting with ad platforms. All commands are run from your project directory (where `ads.config.ts` lives).
+
+---
+
+## Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output in JSON format |
+| `--provider <name>` | Filter to a specific provider (`google` or `meta`) |
+| `--help`, `-h` | Show help message |
 
 ---
 
@@ -24,11 +34,22 @@ ads plan --provider meta
 Example output:
 
 ```
-+ campaign   Brand Campaign
-+ adGroup    Brand Campaign / brand-en
-+ keyword    Brand Campaign / brand-en / kw:my-product:EXACT
-~ budget     Brand Campaign  $15/day → $20/day
-- keyword    Old Campaign / old-group / kw:old-keyword:BROAD
+Discovering campaigns... 3 found
+
+Fetching live state from Google Ads...
+
+  + campaign   Search - Exact Match
+  + adGroup    Search - Exact Match / rename-files
+  + keyword    Search - Exact Match / rename-files / kw:rename-files:EXACT
+  + keyword    Search - Exact Match / rename-files / kw:batch-rename:EXACT
+  + keyword    Search - Exact Match / rename-files / kw:file-renaming-tool:PHRASE
+  + ad         Search - Exact Match / rename-files / rsa:a3f2b1c9...
+  + sitelink   Search - Exact Match / sitelink:pricing
+  ~ budget     Brand Search                         €15/day → €20/day
+  ~ bidding    Brand Search                         maximize-clicks → maximize-conversions
+  - keyword    Old Campaign / old-group / kw:old-keyword:BROAD
+
+Summary: 7 to create, 2 to update, 1 to delete
 ```
 
 ---
@@ -45,8 +66,39 @@ ads apply --provider google
 
 | Flag | Description |
 |------|-------------|
-| `--dry-run` | Show what would be done, but make no API calls |
+| `--dry-run` | Show exact API payloads without making any changes |
 | `--provider <name>` | Limit to a specific provider |
+
+Example output:
+
+```
+Planning changes...
+
+  + campaign   Search - Exact Match
+  + adGroup    Search - Exact Match / rename-files
+  + keyword    Search - Exact Match / rename-files / kw:rename-files:EXACT
+  + ad         Search - Exact Match / rename-files / rsa:a3f2b1c9...
+
+Applying 4 operations...
+
+  ✓  Created campaign      Search - Exact Match (customers/YOUR_CUSTOMER_ID/campaigns/123456)
+  ✓  Created adGroup       rename-files (customers/YOUR_CUSTOMER_ID/adGroups/789012)
+  ✓  Created keyword       kw:rename-files:EXACT
+  ✓  Created ad            rsa:a3f2b1c9...
+
+Applied 4 changes in 1.2s
+```
+
+With `--dry-run`:
+
+```
+  [DRY RUN] Would create campaign: Search - Exact Match
+  [DRY RUN] Would create adGroup: rename-files
+  [DRY RUN] Would create 2 keywords
+  [DRY RUN] Would create 1 ad
+
+  4 operations would be applied (no changes made)
+```
 
 Mutations are applied parent-first for creates and child-first for deletes. On the first failure, execution stops to avoid orphaned resources.
 
@@ -67,16 +119,51 @@ ads import --out campaigns/imported/
 | `--provider <name>` | Provider to import from (default: `google`) |
 | `--out <dir>` | Output directory (default: `campaigns/`) |
 
-This is useful for bootstrapping a new project from existing campaigns. The generated TypeScript is idiomatic — using `google.search()`, `rsa()`, `exact()`, etc. — not raw JSON dumps.
+Example output:
+
+```
+Fetching campaigns from Google Ads...
+
+  Found 5 campaigns:
+    - Brand Search (ENABLED)
+    - Non-Brand - Exact (ENABLED)
+    - Non-Brand - Phrase (PAUSED)
+    - Competitors (ENABLED)
+    - Display - Remarketing (PAUSED)
+
+Writing TypeScript files...
+
+  ✓  campaigns/brand-search.ts
+  ✓  campaigns/non-brand-exact.ts
+  ✓  campaigns/non-brand-phrase.ts
+  ✓  campaigns/competitors.ts
+  ✓  campaigns/display-remarketing.ts
+
+Imported 5 campaigns.
+```
+
+The generated TypeScript uses the full DSL (`google.search()`, `rsa()`, `exact()`, etc.), not raw JSON.
 
 ---
 
 ## `ads pull`
 
-Fetches live state for campaigns already in the cache and shows drift. Unlike `plan`, this doesn't discover new campaigns not in your TypeScript files — it only checks resources the cache knows about.
+Fetches live state for campaigns already in the cache and shows drift. Unlike `plan`, this does not discover new campaigns — it only checks resources the cache already knows about.
 
 ```bash
 ads pull
+```
+
+Example output:
+
+```
+Checking 12 cached resources against live state...
+
+  ~ budget     Brand Search    €15/day → €20/day   (changed in platform)
+  ~ status     Old Campaign    enabled → paused     (changed in platform)
+
+2 drifted resources detected.
+Run 'ads plan' to see full diff, or 'ads apply' to sync.
 ```
 
 Use this to detect out-of-band changes (someone edited campaigns directly in the Google Ads UI).
@@ -85,10 +172,26 @@ Use this to detect out-of-band changes (someone edited campaigns directly in the
 
 ## `ads validate`
 
-Discovers and flattens all campaigns in `campaigns/**/*.ts`, reports any errors (invalid character counts, missing required fields, etc.) without making any API calls.
+Discovers and flattens all campaigns in `campaigns/**/*.ts`, reports errors (invalid character counts, missing required fields, etc.) without making any API calls.
 
 ```bash
 ads validate
+```
+
+Example output:
+
+```
+Discovering campaigns...
+
+  ✓  campaigns/brand-search.ts          (2 ad groups, 8 keywords, 2 ads)
+  ✓  campaigns/non-brand.ts             (4 ad groups, 20 keywords, 4 ads)
+  ✗  campaigns/competitors.ts
+
+Errors in campaigns/competitors.ts:
+  - Headline "This Headline Is Way Too Long For Google" exceeds 30 chars (got 41)
+  - RSA requires at least 3 headlines, got 2
+
+2 campaigns valid, 1 with errors.
 ```
 
 Useful in CI to catch errors before deploying.
@@ -97,16 +200,32 @@ Useful in CI to catch errors before deploying.
 
 ## `ads status`
 
-Fetches and displays live state from the platform.
+Fetches and displays live campaign state from the platform.
 
 ```bash
 ads status
 ads status --provider meta
+ads status --filter "Brand*"
+ads status --json
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--provider <name>` | Limit to a specific provider |
+| `--filter <glob>` | Filter campaigns by name pattern |
+| `--json` | Output raw JSON |
+
+Example output:
+
+```
+Google Ads — Account YOUR_CUSTOMER_ID
+
+  ENABLED   Brand Search             €15.00/day    maximize-clicks      2 ad groups
+  ENABLED   Non-Brand - Exact        €25.00/day    maximize-conversions 4 ad groups
+  PAUSED    Display - Remarketing    €5.00/day     maximize-conversions 1 ad group
+
+3 campaigns. Fetched in 0.8s
+```
 
 ---
 
@@ -116,10 +235,29 @@ Authenticates with an ad platform and verifies the connection.
 
 ```bash
 ads auth google
-ads auth meta
+ads auth google --check
 ```
 
-For Google Ads, this runs an OAuth flow and saves the refresh token. For Meta, it verifies the `FB_ADS_ACCESS_TOKEN` environment variable.
+| Flag | Description |
+|------|-------------|
+| `--check` | Only verify existing credentials (no OAuth flow) |
+
+Example output (Google):
+
+```
+Starting Google Ads OAuth flow...
+
+Open this URL in your browser:
+  https://accounts.google.com/o/oauth2/auth?...
+
+Waiting for authorization... (Ctrl+C to cancel)
+
+✓  Authenticated successfully.
+   Account: My Company (YOUR_CUSTOMER_ID)
+   Manager: My Agency (YOUR_MANAGER_ID)
+
+   Credentials saved to ~/.ads/credentials.json
+```
 
 ---
 
@@ -136,14 +274,43 @@ Creates:
 - `ads.config.ts` with a `defineConfig()` template
 - `campaigns/` directory with a sample campaign file
 
+Example output:
+
+```
+Scaffolding new ads-as-code project...
+
+  ✓  Created ads.config.ts
+  ✓  Created campaigns/example.ts
+
+Next steps:
+  1. Edit ads.config.ts with your account IDs
+  2. Run 'ads auth google' to authenticate
+  3. Run 'ads validate' to check your campaigns
+  4. Run 'ads plan' to preview changes
+```
+
 ---
 
 ## `ads doctor`
 
-Runs diagnostic checks on your project setup: credentials, config file, campaign file syntax, API connectivity.
+Runs diagnostic checks on your project setup: credentials, config file, campaign file syntax, and API connectivity.
 
 ```bash
 ads doctor
+```
+
+Example output:
+
+```
+Running diagnostics...
+
+  ✓  ads.config.ts found
+  ✓  campaigns/ directory found (3 campaign files)
+  ✓  Google credentials present (~/.ads/credentials.json)
+  ✓  Google Ads API connection OK (Account: YOUR_CUSTOMER_ID)
+  ✗  Meta: FB_ADS_ACCESS_TOKEN not set
+
+1 issue found. Run 'ads auth google' to re-authenticate, or set FB_ADS_ACCESS_TOKEN for Meta.
 ```
 
 Run this first when troubleshooting.
@@ -163,13 +330,36 @@ ads generate --provider meta
 |------|-------------|
 | `--provider <name>` | Limit to a specific provider |
 
+Example output:
+
+```
+Discovering ai.* markers...
+
+  campaigns/brand.ts:  ai.rsa (1 marker)
+  campaigns/meta.ts:   ai.metaCopy (2 markers), ai.interests (1 marker)
+
+Generating content...
+
+  ✓  brand.ts / brand-exact / rsa  — generated 5 headlines, 3 descriptions
+  ✓  meta.ts / US Retargeting / image-ad — generated headline + primaryText
+  ✓  meta.ts / EU Retargeting / image-ad — generated headline + primaryText
+  ✓  meta.ts / interests — resolved 6 interests
+
+Writing updated files...
+
+  ✓  campaigns/brand.ts
+  ✓  campaigns/meta.ts
+
+Generated 4 items. Run 'ads plan' to review.
+```
+
 See [AI Generation](/docs/guides/ai-generation) for details.
 
 ---
 
 ## `ads optimize`
 
-Analyzes existing campaign copy and suggests improvements. Presents suggestions as a diff; you approve before anything is written.
+Analyzes existing campaign copy and suggests AI-powered improvements. Presents suggestions as a diff before writing anything.
 
 ```bash
 ads optimize
@@ -192,7 +382,21 @@ ads search behaviors "small business owners"
 | `interests <query>` | Search for interest targeting options |
 | `behaviors <query>` | Search for behavior targeting options |
 
-Results show the interest/behavior name and ID for use in your campaign definitions.
+Example output:
+
+```
+Searching Meta interests for "productivity software"...
+
+  Name                            ID                Category
+  ──────────────────────────────────────────────────────────
+  Productivity software           6003368839124     Technology > Software
+  Business productivity           6003353008925     Business > Productivity
+  Project management software     6003370250981     Technology > Software
+  Time management apps            6003492523689     Technology > Mobile apps
+  Collaboration software          6003417620532     Technology > Software
+
+Use the name in interests('...') or the ID in interests({ id: '...', name: '...' })
+```
 
 ---
 
@@ -204,6 +408,21 @@ Lists Meta custom audiences available in your ad account.
 ads audiences
 ```
 
+Example output:
+
+```
+Meta Custom Audiences — Account YOUR_ACCOUNT_ID
+
+  ID                  Name                          Type          Size
+  ──────────────────────────────────────────────────────────────────────
+  23856789012345      Website Visitors 30d          WEBSITE       ~45,000
+  23856789012346      Website Visitors 90d          WEBSITE       ~120,000
+  23856789012347      Email List - Customers        CUSTOM_LIST   ~8,500
+  23856789012348      Video Viewers 50%             VIDEO         ~23,000
+
+Use the name in audience('...') or the ID in audience({ id: '...' })
+```
+
 ---
 
 ## `ads history`
@@ -212,20 +431,36 @@ Shows the operation history from the SQLite cache — a log of all creates, upda
 
 ```bash
 ads history
-ads history --limit 50
-ads history --since 2025-01-01
+ads history --diff 5
+ads history --rollback 3
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--limit <n>` | Number of entries to show (default: 20) |
-| `--since <date>` | Show entries since this date |
+| `--diff <n>` | Show the changeset for operation N |
+| `--rollback <n>` | Show snapshot N for potential revert |
+
+Example output:
+
+```
+Operation History
+
+  #   Timestamp              Provider  Op       Resource
+  ────────────────────────────────────────────────────────────────────
+  12  2026-03-15 14:32:01   google    apply    4 creates, 1 update
+  11  2026-03-14 10:15:44   google    apply    2 creates
+  10  2026-03-13 09:02:11   meta      apply    3 creates, 2 updates
+  9   2026-03-12 16:44:30   google    apply    1 update (budget change)
+  8   2026-03-10 11:20:05   google    apply    6 creates
+
+Run 'ads history --diff 12' to see the changeset for operation 12.
+```
 
 ---
 
 ## `ads cache`
 
-Manage the SQLite cache.
+Manage the SQLite cache (default: `.ads-cache/state.db`).
 
 ```bash
 ads cache stats    # Show cache statistics
@@ -237,6 +472,20 @@ ads cache clear    # Clear all cached state
 | `stats` | Show cache size, resource count, last updated |
 | `clear` | Delete all cached resource mappings and history |
 
-> **Warning:** Clearing the cache means the next `ads apply` will treat all resources as new. If the platform already has them, this will cause duplicate creation errors. Only clear the cache if you know what you're doing.
+Example output (`ads cache stats`):
+
+```
+Cache Statistics — .ads-cache/state.db
+
+  Size:          48 KB
+  Resources:     127 (84 google, 43 meta)
+  Operations:    12
+  Last updated:  2026-03-15 14:32:01
+
+  Google: 3 campaigns, 12 ad groups, 68 keywords, 4 ads, 6 extensions
+  Meta:   2 campaigns, 4 ad sets, 8 ads, 29 creatives
+```
+
+> **Warning:** Clearing the cache means the next `ads apply` will treat all resources as new. If the platform already has them, this may cause duplicate creation errors. Only clear the cache if you know what you're doing.
 
 See [Cache Reference](/docs/reference/cache) for details.

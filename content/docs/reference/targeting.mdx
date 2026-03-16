@@ -1,0 +1,620 @@
+---
+title: Targeting Helpers
+description: Complete reference for geographic, demographic, audience, schedule, and display targeting helpers.
+---
+
+All targeting helpers are imported from `@upspawn/ads`. Use [`targeting()`](#targeting) to compose multiple rules into a single `Targeting` object accepted by campaigns.
+
+---
+
+## `targeting(...rules)`
+
+Compose multiple targeting rules into a single `Targeting` object. Pass any combination of the helpers below.
+
+```ts
+function targeting(...rules: TargetingRule[]): Targeting
+```
+
+```ts
+import { targeting, geo, languages, weekdays, hours, device, presence } from '@upspawn/ads'
+
+const t = targeting(
+  geo('US', 'CA'),
+  languages('en'),
+  weekdays(),
+  hours(9, 17),
+  device('mobile', -0.5),
+  presence('presence'),
+)
+```
+
+Rules are additive. Multiple rules of different types are all applied. Multiple `device()` rules each apply to their respective device.
+
+---
+
+## Geographic
+
+### `geo(...countries)`
+
+Target specific countries by ISO country code. Optionally pass per-country bid adjustments.
+
+```ts
+function geo(
+  ...args: [...CountryCode[]] | [...CountryCode[], { bidAdjustments: Record<string, number> }]
+): GeoTarget
+```
+
+```ts
+import { geo } from '@upspawn/ads'
+
+geo('US')                               // single country
+geo('US', 'CA', 'GB')                  // multiple countries
+geo('US', 'DE', { bidAdjustments: { US: 0.2, DE: -0.1 } }) // with bid adjustments
+```
+
+Throws if no country codes are provided.
+
+---
+
+### `regions(...regionIds)`
+
+Target specific regions (states, provinces) by name or ID.
+
+```ts
+function regions(...regionIds: string[]): RegionTarget
+```
+
+```ts
+import { regions } from '@upspawn/ads'
+
+regions('California', 'New York', 'Texas')
+```
+
+---
+
+### `cities(...cityNames)`
+
+Target specific cities by name.
+
+```ts
+function cities(...cityNames: string[]): CityTarget
+```
+
+```ts
+import { cities } from '@upspawn/ads'
+
+cities('Berlin', 'Munich', 'Hamburg')
+```
+
+---
+
+### `radius(lat, lng, radiusKm)`
+
+Target a circular area around a geographic coordinate.
+
+```ts
+function radius(lat: number, lng: number, radiusKm: number): RadiusTarget
+```
+
+```ts
+import { radius } from '@upspawn/ads'
+
+radius(52.52, 13.405, 50)  // 50 km around Berlin
+radius(40.71, -74.01, 25)  // 25 km around New York City
+```
+
+Throws if `radiusKm` is not positive.
+
+---
+
+### `presence(mode)`
+
+Control whether targeting applies to people physically in the location or also those with interest in it.
+
+```ts
+function presence(mode: 'presence' | 'presence-or-interest'): PresenceTarget
+```
+
+```ts
+import { presence } from '@upspawn/ads'
+
+presence('presence')               // only people physically in the targeted location
+presence('presence-or-interest')   // also people who search for or show interest in the location
+```
+
+---
+
+## Language
+
+### `languages(...langs)`
+
+Target by ISO language code.
+
+```ts
+function languages(...langs: LanguageCode[]): LanguageTarget
+```
+
+```ts
+import { languages } from '@upspawn/ads'
+
+languages('en')
+languages('en', 'de', 'fr')
+```
+
+Throws if no language codes are provided.
+
+---
+
+## Schedule
+
+### `weekdays()`
+
+Restrict delivery to Monday through Friday (all hours).
+
+```ts
+function weekdays(): ScheduleTarget
+```
+
+```ts
+import { weekdays } from '@upspawn/ads'
+
+weekdays()
+// { type: 'schedule', days: ['mon', 'tue', 'wed', 'thu', 'fri'] }
+```
+
+---
+
+### `hours(startHour, endHour)`
+
+Restrict delivery to a specific hour range within a day.
+
+```ts
+function hours(startHour: number, endHour: number): ScheduleTarget
+```
+
+- `startHour`: 0–23 (inclusive)
+- `endHour`: 1–24 (inclusive), must be greater than `startHour`
+
+```ts
+import { hours } from '@upspawn/ads'
+
+hours(9, 17)   // 9am–5pm
+hours(0, 8)    // midnight–8am
+```
+
+Combine with `weekdays()` to restrict to business hours Monday–Friday:
+
+```ts
+targeting(weekdays(), hours(9, 17))
+```
+
+---
+
+### `scheduleBid(day, startHour, endHour, bidAdjustment)`
+
+Apply a bid adjustment for a specific day and hour range.
+
+```ts
+function scheduleBid(
+  day: Day,
+  startHour: number,
+  endHour: number,
+  bidAdjustment: number,
+): ScheduleBidTarget
+```
+
+- `day`: `'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'`
+- `bidAdjustment`: −1.0 to 9.0. `-1.0` excludes the slot, `0.0` = no change, `0.3` = +30%
+
+```ts
+import { scheduleBid } from '@upspawn/ads'
+
+scheduleBid('mon', 9, 17, 0.2)    // +20% on Monday 9am–5pm
+scheduleBid('sat', 0, 24, -0.3)   // −30% on Saturdays
+```
+
+---
+
+## Device
+
+### `device(deviceType, bidAdjustment)`
+
+Apply a bid adjustment for a specific device type.
+
+```ts
+function device(
+  deviceType: 'mobile' | 'desktop' | 'tablet',
+  bidAdjustment: number,
+): DeviceTarget
+```
+
+- `bidAdjustment`: −1.0 to 9.0
+  - `-1.0` = exclude this device entirely (−100%)
+  - `0.0` = no change (default)
+  - `0.3` = +30% bid increase
+  - `-0.5` = −50% bid reduction
+
+```ts
+import { device } from '@upspawn/ads'
+
+device('mobile', -1.0)   // exclude mobile entirely
+device('tablet', -0.5)   // reduce tablet bids by 50%
+device('desktop', 0.2)   // increase desktop bids by 20%
+```
+
+Add multiple `device()` rules to target all three types:
+
+```ts
+targeting(
+  geo('US'),
+  device('mobile', -1.0),
+  device('tablet', -0.5),
+)
+```
+
+---
+
+## Demographics
+
+### `demographics(opts)`
+
+Target specific demographic segments. All fields are optional.
+
+```ts
+function demographics(opts: {
+  ageRanges?: AgeRange[]
+  genders?: Gender[]
+  incomes?: IncomeRange[]
+  parentalStatuses?: ParentalStatus[]
+}): DemographicTarget
+```
+
+**Valid values:**
+
+| Field | Valid values |
+|-------|-------------|
+| `ageRanges` | `'18-24'`, `'25-34'`, `'35-44'`, `'45-54'`, `'55-64'`, `'65+'`, `'undetermined'` |
+| `genders` | `'male'`, `'female'`, `'undetermined'` |
+| `incomes` | `'top-10'`, `'top-10-20'`, `'top-20-30'`, `'top-30-40'`, `'top-40-50'`, `'lower-50'`, `'undetermined'` |
+| `parentalStatuses` | `'parent'`, `'not-parent'`, `'undetermined'` |
+
+```ts
+import { demographics } from '@upspawn/ads'
+
+demographics({
+  ageRanges: ['25-34', '35-44'],
+  genders: ['male'],
+})
+
+demographics({
+  incomes: ['top-10', 'top-10-20'],
+  parentalStatuses: ['parent'],
+})
+```
+
+---
+
+## Audiences (Google)
+
+Audience helpers create `AudienceRef` objects that are passed to `audiences()` or `audienceTargeting()`.
+
+### `audiences(...refs)`
+
+Add audiences in **observation mode** — ads still show to everyone, but you collect performance data per audience and can apply bid adjustments.
+
+```ts
+function audiences(...refs: AudienceRef[]): AudienceTarget
+```
+
+```ts
+import { audiences, remarketing, inMarket } from '@upspawn/ads'
+
+audiences(
+  remarketing('123456789', { bidAdjustment: 0.5 }),
+  inMarket('80432', { name: 'Business Software' }),
+)
+```
+
+---
+
+### `audienceTargeting(...refs)`
+
+Add audiences in **targeting mode** — ads are restricted to only these audiences.
+
+```ts
+function audienceTargeting(...refs: AudienceRef[]): AudienceTarget
+```
+
+```ts
+import { audienceTargeting, remarketing } from '@upspawn/ads'
+
+audienceTargeting(
+  remarketing('123456789', { name: 'Cart Abandoners' }),
+)
+```
+
+---
+
+### `remarketing(listId, options?)`
+
+Reference a remarketing list.
+
+```ts
+function remarketing(listId: string, options?: { name?: string; bidAdjustment?: number }): AudienceRef
+```
+
+```ts
+remarketing('123456789')
+remarketing('123456789', { name: 'All Visitors', bidAdjustment: 0.2 })
+```
+
+---
+
+### `customAudience(audienceId, options?)`
+
+Reference a custom audience.
+
+```ts
+function customAudience(audienceId: string, options?: { name?: string; bidAdjustment?: number }): AudienceRef
+```
+
+```ts
+customAudience('789', { name: 'File Management Searchers' })
+```
+
+---
+
+### `inMarket(categoryId, options?)`
+
+Reference an in-market audience segment.
+
+```ts
+function inMarket(categoryId: string, options?: { name?: string; bidAdjustment?: number }): AudienceRef
+```
+
+```ts
+inMarket('80432', { name: 'Business Software' })
+```
+
+---
+
+### `affinity(categoryId, options?)`
+
+Reference an affinity audience segment.
+
+```ts
+function affinity(categoryId: string, options?: { name?: string; bidAdjustment?: number }): AudienceRef
+```
+
+```ts
+affinity('80101', { name: 'Technology Enthusiasts' })
+```
+
+---
+
+### `customerMatch(listId, options?)`
+
+Reference a customer match list (uploaded email/phone list).
+
+```ts
+function customerMatch(listId: string, options?: { name?: string; bidAdjustment?: number }): AudienceRef
+```
+
+```ts
+customerMatch('list-001', { name: 'Existing Customers' })
+```
+
+---
+
+## Display-Specific
+
+These helpers are for Google Display campaigns and are passed into `targeting()`.
+
+### `placements(...urls)`
+
+Target specific websites or YouTube channels where your ads will appear.
+
+```ts
+function placements(...urls: string[]): PlacementTarget
+```
+
+```ts
+import { placements } from '@upspawn/ads'
+
+placements('youtube.com', 'news.google.com', 'techcrunch.com')
+```
+
+---
+
+### `topics(...topicNames)`
+
+Target pages that match content topics from Google's topic taxonomy.
+
+```ts
+function topics(...topicNames: string[]): TopicTarget
+```
+
+```ts
+import { topics } from '@upspawn/ads'
+
+topics('Computers & Electronics', 'Business', 'Finance')
+```
+
+---
+
+### `contentKeywords(...kws)`
+
+Target pages containing specific keywords (contextual targeting).
+
+```ts
+function contentKeywords(...kws: string[]): ContentKeywordTarget
+```
+
+```ts
+import { contentKeywords } from '@upspawn/ads'
+
+contentKeywords('file management', 'pdf tools', 'batch rename')
+```
+
+---
+
+## Meta Targeting
+
+Meta targeting uses a separate set of helpers composed via `metaTargeting()`.
+
+### `metaTargeting(...rules)`
+
+Compose Meta targeting rules into a `MetaTargeting` object. Requires at least one `geo()` rule.
+
+```ts
+function metaTargeting(...rules: MetaTargetingRule[]): MetaTargeting
+```
+
+```ts
+import { metaTargeting, geo, age, audience, interests } from '@upspawn/ads'
+
+metaTargeting(
+  geo('US', 'DE'),
+  age(25, 65),
+  audience('Website Visitors 30d'),
+  ...interests('Construction', 'BIM'),
+)
+```
+
+---
+
+### `age(min, max)`
+
+Set age range for Meta targeting.
+
+```ts
+function age(min: number, max: number): MetaTargetingRule
+```
+
+- `min` and `max`: 13–65
+
+```ts
+import { age } from '@upspawn/ads'
+
+age(25, 65)   // target ages 25 to 65
+age(18, 35)   // target ages 18 to 35
+```
+
+---
+
+### `audience(nameOrId)`
+
+Reference a Meta custom audience by name (resolved at plan/validate time) or explicit ID.
+
+```ts
+function audience(nameOrId: string | { id: string }): AudienceMarker
+```
+
+```ts
+import { audience } from '@upspawn/ads'
+
+audience('Website Visitors 30d')        // name lookup — resolved at plan time
+audience({ id: '23856789012345' })      // explicit ID — no lookup required
+```
+
+---
+
+### `excludeAudience(nameOrId)`
+
+Exclude a Meta custom audience from delivery.
+
+```ts
+function excludeAudience(nameOrId: string | { id: string }): ExcludedAudienceMarker
+```
+
+```ts
+import { excludeAudience } from '@upspawn/ads'
+
+excludeAudience('Existing Customers')
+excludeAudience({ id: '23856789099999' })
+```
+
+---
+
+### `interests(...args)`
+
+Target by interest name (resolved via catalog or Meta Targeting Search API) or explicit `{ id, name }`.
+
+```ts
+function interests(
+  ...args: (string | { id: string; name: string })[]
+): InterestMarker[]
+```
+
+Returns an array of markers — spread into `metaTargeting()`:
+
+```ts
+import { metaTargeting, geo, interests } from '@upspawn/ads'
+
+metaTargeting(
+  geo('US'),
+  ...interests('Construction', 'BIM Software'),
+  ...interests({ id: '6003370250981', name: 'Architecture' }),
+)
+```
+
+Use `ads search interests "<query>"` to find interest names and IDs.
+
+---
+
+### `lookalike(source, config)`
+
+Create a lookalike audience from an existing audience.
+
+```ts
+function lookalike(
+  source: string | { id: string },
+  config: { geo: GeoTarget; percent: number },
+): LookalikeMarker
+```
+
+- `percent`: 1–10 (percentage of population similarity)
+
+```ts
+import { lookalike, geo } from '@upspawn/ads'
+
+lookalike('Website Visitors 30d', { geo: geo('US'), percent: 1 })
+lookalike({ id: '23856789012345' }, { geo: geo('DE'), percent: 2 })
+```
+
+---
+
+## Putting It Together
+
+```ts
+import {
+  google,
+  targeting,
+  geo,
+  languages,
+  weekdays,
+  hours,
+  device,
+  demographics,
+  audiences,
+  remarketing,
+  daily,
+  negatives,
+} from '@upspawn/ads'
+
+export default google.search('Search - Core', {
+  budget: daily(30),
+  bidding: 'maximize-conversions',
+  targeting: targeting(
+    geo('US', 'CA', 'GB'),
+    languages('en'),
+    weekdays(),
+    hours(8, 20),
+    device('mobile', 0.15),
+    device('tablet', -0.3),
+    demographics({ ageRanges: ['25-34', '35-44', '45-54'] }),
+    audiences(remarketing('123456', { bidAdjustment: 0.5 })),
+  ),
+  negatives: negatives('free', 'open source', 'crack'),
+})
+```

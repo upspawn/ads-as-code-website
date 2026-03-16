@@ -1,4 +1,4 @@
 {
   "title": "Reference",
-  "pages": ["cli", "api", "configuration", "cache"]
+  "pages": ["cli", "api", "targeting", "extensions", "bidding-strategies", "configuration", "cache"]
 }
