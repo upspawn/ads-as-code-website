@@ -1,0 +1,183 @@
+---
+title: Provider Architecture
+description: How Google and Meta share a provider-agnostic core engine
+---
+
+The SDK supports Google Ads and Meta Ads through a provider system. Both platforms share the same core engine — diff, cache, discovery — while each provider implements its own fetch, flatten, apply, and codegen logic. New platforms can be added by implementing the same four-function interface.
+
+---
+
+## The Provider Interface
+
+Every provider implements four functions:
+
+```ts
+interface ProviderModule {
+  // Campaign tree → flat Resource[]
+  flatten(campaigns: unknown[]): Resource[]
+
+  // Platform API → flat Resource[]
+  fetchAll(config: AdsConfig, cache: Cache): Promise<Resource[]>
+
+  // Execute a Changeset against the platform API
+  applyChangeset(
+    changeset: Changeset,
+    config: AdsConfig,
+    cache: Cache,
+    project: string,
+  ): Promise<ApplyResult>
+
+  // Resource[] → idiomatic TypeScript source (for `import` command)
+  codegen(resources: Resource[], campaignName: string): string
+}
+```
+
+The interface is minimal by design. The core engine calls these four functions; everything else is provider-internal.
+
+---
+
+## The Provider-Agnostic Core
+
+The core engine never imports from `google/` or `meta/`. It operates entirely on `Resource[]`:
+
+```
+                    ┌─────────────────────────────────────┐
+                    │           Core Engine               │
+Campaign files ───► │  discovery → flatten → diff → cache │ ───► Changeset
+                    │                                     │
+                    └─────────────────────────────────────┘
+                           │                    ▲
+                    applyChangeset          fetchAll
+                           │                    │
+                    ┌──────┴────────────────────┴──────┐
+                    │         Provider (Google/Meta)    │
+                    └───────────────────────────────────┘
+```
+
+The `diff` function doesn't know whether a `Resource` came from Google or Meta. The `cache` stores paths and platformIds regardless of provider. The `plan` and `apply` CLI commands work the same way for both providers — they just route to the correct provider module based on the `provider` field on each campaign.
+
+This means the code you write looks the same regardless of platform:
+
+```ts
+// Google campaign
+export const searchCampaign = google.search('Brand — Search')
+  .budget(daily(20, eur()))
+  // ...
+
+// Meta campaign — same export pattern, same discovery mechanism
+export const trafficCampaign = meta.traffic('Website Traffic')
+  .budget(daily(15, eur()))
+  // ...
+```
+
+Both appear in `campaigns/**/*.ts`, both are discovered the same way, and both go through the same plan/apply pipeline.
+
+---
+
+## Google Provider
+
+### Transport: gRPC
+
+Google's REST API had reliability issues for mutations, so the SDK uses gRPC via the `google-ads-api` npm package. This means:
+
+- All requests use the protobuf wire format internally
+- The client returns responses with **numeric enum values**, not strings. Status `2` = `ENABLED`, `3` = `PAUSED`. Bidding strategy `6` = `MAXIMIZE_CONVERSIONS`, `10` = `TARGET_SPEND` (which is the enum name for Maximize Clicks — yes, the API name is confusing).
+- Field names are **snake_case** in the gRPC response: `ad_group_criterion`, `campaign_budget`, `responsive_search_ad`.
+
+The fetch layer translates all of this into the normalized format used by the core engine. By the time a `Resource` reaches the diff engine, it contains plain strings and numbers — no provider-specific encoding.
+
+### Budget as a separate resource
+
+Google models campaign budgets as independent resources. Creating a campaign requires:
+1. Create a `campaign_budget` resource — get its resource name
+2. Create the `campaign`, referencing the budget by resource name
+
+The apply layer handles this automatically. From your code's perspective, budget is just a property on the campaign:
+
+```ts
+google.search('My Campaign')
+  .budget(daily(20, eur()))
+```
+
+### Mutations in dependency order
+
+Creates go parent-first: campaign → adGroup → keyword/ad. Deletes go child-first: ads/keywords → adGroups → campaign. This ordering prevents orphaned resources and ensures referential integrity during apply.
+
+### Credentials
+
+Resolved from: explicit `GoogleProviderConfig` in `ads.config.ts` → `~/.ads/credentials.json` → environment variables (`GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_REFRESH_TOKEN`, etc.).
+
+See [Configuration Reference](/docs/reference/configuration) for the full credential setup.
+
+---
+
+## Meta Provider
+
+### Transport: Graph API (REST)
+
+Meta uses a standard REST JSON API. Field names are camelCase, enum values are strings, and responses are paginated.
+
+### Auth model
+
+Meta auth uses a **long-lived access token** rather than an OAuth flow. The token is obtained once from Meta Business Suite and set as `FB_ADS_ACCESS_TOKEN` in your environment. There's no `auth meta` command — just set the env var.
+
+The token grants access to the ad account specified by `accountId` in your config.
+
+### Media upload during apply
+
+Meta ad creatives reference images and videos by asset IDs. The SDK handles local image paths — when you write:
+
+```ts
+meta.traffic('Website Traffic')
+  .adSet('Main', adSet =>
+    adSet.ad('Primary Ad',
+      image('./assets/banner.jpg'),
+      // ...
+    )
+  )
+```
+
+The `image('./assets/banner.jpg')` stores a local file reference. During `apply`, the Meta provider:
+1. Uploads the image to Meta's media library via multipart Graph API request
+2. Gets back an asset ID
+3. Uses that ID in the ad creative mutation
+
+Images are uploaded once and cached by content hash, so subsequent applies don't re-upload unchanged assets.
+
+### Objective-typed builders
+
+Meta campaigns have an objective (`traffic`, `conversions`, `leads`, etc.) that constrains which optimization goals are valid for ad sets. The SDK encodes this at the type level:
+
+```ts
+// meta.traffic() returns MetaCampaignBuilder<'traffic'>
+// .adSet() only accepts optimization goals valid for traffic campaigns
+meta.traffic('Campaign')
+  .adSet('Group', adSet =>
+    adSet.optimizationGoal('LINK_CLICKS')  // ✓ valid for traffic
+    // adSet.optimizationGoal('OFFSITE_CONVERSIONS')  // ✗ compile error
+  )
+```
+
+Invalid combinations are caught at compile time, not at API call time.
+
+---
+
+## What Google and Meta Share
+
+Despite their different APIs, both providers share:
+
+- **`Resource` type** — the same data structure, same `path`, same `properties` bag
+- **Diff engine** — exact same `diff()` function processes both providers' resources
+- **Cache** — same SQLite tables, same path → platformId mapping
+- **CLI commands** — `plan`, `apply`, `import`, `pull` work identically for both providers
+- **Codegen patterns** — both produce valid TypeScript that feeds back into the pipeline
+- **Discovery mechanism** — same `provider` + `kind` field detection, same `campaigns/**/*.ts` scanning
+
+When you run `plan` on a project with both Google and Meta campaigns, the SDK fetches state from both APIs, flattens both campaign trees, runs a single diff, and displays a unified changeset sorted by provider and resource kind.
+
+---
+
+## Further Reading
+
+- [How It Works](/docs/concepts/how-it-works) — the full pipeline these providers plug into
+- [Configuration Reference](/docs/reference/configuration) — credentials and provider config

@@ -1,0 +1,173 @@
+---
+title: The Diff Engine
+description: Semantic comparison for zero-drift campaign management
+---
+
+The diff engine is the heart of the SDK. It answers one question: given the campaigns you've declared in code and the current state on the platform, what mutations are needed to bring them into alignment?
+
+The answer has to be precise. False positives — mutations that "fix" things that weren't actually wrong — erode trust in the tool. The diff engine achieves precision through **semantic comparison**: it understands the meaning of each field, not just its raw value.
+
+---
+
+## Function Signature
+
+```ts
+function diff(
+  desired: Resource[],
+  actual: Resource[],
+  managedPaths?: Set<string>,
+  pathToPlatformId?: Map<string, string>,
+): Changeset
+```
+
+- **`desired`** — flat list of resources from your campaign files (via flatten)
+- **`actual`** — flat list of resources fetched from the platform API
+- **`managedPaths`** — set of paths the SDK previously created (from cache). Resources in `actual` that are in `managedPaths` but absent from `desired` are scheduled for deletion.
+- **`pathToPlatformId`** — cache map of path → platformId. Used for RSA stable identity (see [Resource Identity](/docs/concepts/resource-identity)).
+
+The function is **pure** — no API calls, no side effects, no I/O. Given the same inputs, it always produces the same output. This makes it trivially testable and means `plan` is safe to run as many times as you want.
+
+---
+
+## Why Semantic Comparison Matters
+
+A naive diff would compare properties as raw strings or JSON. This would cause phantom diffs on every run — differences that look like changes but aren't meaningful:
+
+| Field | Code value | API value | Naive diff | Semantic diff |
+|-------|-----------|-----------|-----------|--------------|
+| Budget | `{ amount: 20, currency: 'EUR', period: 'daily' }` | `{ amount: 20.000001, currency: 'EUR', period: 'daily' }` | change | no change |
+| Headlines | `['A', 'B', 'C']` | `['C', 'A', 'B']` | change | no change |
+| Keyword text | `"PDF Renamer"` | `"pdf renamer"` | change | no change |
+| Final URL | `"https://example.com/page/"` | `"https://example.com/page"` | change | no change |
+
+Each of these would trigger an unnecessary mutation, wasting API quota and creating noise in your operation history. Semantic comparison eliminates all of them.
+
+---
+
+## Comparison Rules
+
+### Budgets: micros comparison
+
+Money amounts are compared in micros (millionths of a unit) rather than as floating-point numbers. The Google Ads API stores amounts this way internally; floating-point arithmetic would introduce precision errors.
+
+```ts
+// €20 = 20,000,000 micros
+// €20.000001 ≈ 20,000,001 micros — but toMicros(20.000001) rounds to 20,000,001
+// Math.round(20.000001 * 1_000_000) === Math.round(20 * 1_000_000) → both 20000000
+```
+
+The rule: two budget amounts are equal if `Math.round(a * 1_000_000) === Math.round(b * 1_000_000)`. This means €19.9999999 and €20 are treated as equal, which is correct behavior — you wrote `20`, the API stored `20`, the tiny floating-point difference is noise.
+
+### Headlines and descriptions: order-independent
+
+RSA ad headlines and descriptions are compared as **unordered sets**. The platform may return them in any order, and the order you specify them doesn't affect ad performance (Google optimizes the order at serving time).
+
+```ts
+// These are equal:
+headlines: ['Convert PDF', 'Try Free', 'Fast & Accurate']
+headlines: ['Fast & Accurate', 'Convert PDF', 'Try Free']
+```
+
+Both arrays are sorted before comparison. As long as the same strings are present, there's no diff.
+
+### Keywords: case-insensitive text
+
+Keyword text is compared case-insensitively. Google normalizes keyword case in the API response, so `"PDF Renamer"` in your code may come back as `"pdf renamer"` from the API.
+
+```ts
+// These are equal:
+text: 'PDF Renamer'
+text: 'pdf renamer'
+```
+
+### URLs: normalized
+
+URLs are normalized before comparison: lowercase protocol, trailing slash removed from path (except root `/`).
+
+```ts
+// These are equal:
+'https://example.com/page/'
+'https://example.com/page'
+
+// These are equal:
+'HTTPS://example.com'
+'https://example.com'
+```
+
+### Targeting arrays: order-independent
+
+The Meta API returns targeting arrays (interests, behaviors, custom audiences) in arbitrary order. These are compared as unordered sets, with interest/audience objects matched by their `id` property.
+
+```ts
+// These are equal — same interests, different order:
+interests: [{ id: '6003139266461', name: 'Technology' }, { id: '6003020834693', name: 'Software' }]
+interests: [{ id: '6003020834693', name: 'Software' }, { id: '6003139266461', name: 'Technology' }]
+```
+
+### Effectively empty values
+
+`undefined`, `null`, empty objects `{}`, and targeting objects with empty rules `{ rules: [] }` are all treated as equivalent to "not set". This prevents diffs when you omit an optional field vs when the API returns a null or empty object for it.
+
+---
+
+## Zero-Diff Round-Trips
+
+A critical property of the SDK is that `import → plan` produces **zero changes**. If you import your existing campaigns and immediately run `plan`, the changeset should be empty.
+
+This is the correctness test for the entire system. It means:
+- The fetch layer normalizes API responses to the same format that flatten produces from code
+- The semantic comparison rules cover all the cases where the API and the code naturally diverge in representation
+- The codegen layer produces code that, when flattened, matches what was fetched
+
+If you see unexpected changes after an import, it indicates a normalization gap somewhere in the pipeline. The zero-diff invariant is verified by integration tests in the SDK's test suite.
+
+---
+
+## Changeset Structure
+
+The diff function returns a `Changeset`:
+
+```ts
+type Changeset = {
+  readonly creates: Change[]  // Resources in desired but not in actual
+  readonly updates: Change[]  // Resources in both, with property differences
+  readonly deletes: Change[]  // Resources in managedPaths + actual but not in desired
+  readonly drift: Change[]    // Detected out-of-band changes (future use)
+}
+```
+
+Each `Change` carries the full resource and, for updates, the list of specific property changes:
+
+```ts
+type Change =
+  | { op: 'create'; resource: Resource }
+  | { op: 'update'; resource: Resource; changes: PropertyChange[] }
+  | { op: 'delete'; resource: Resource }
+  | { op: 'drift';  resource: Resource; changes: PropertyChange[] }
+
+type PropertyChange = {
+  field: string
+  from: unknown  // current platform value
+  to: unknown    // desired code value
+}
+```
+
+The `plan` command displays this changeset in a human-readable diff format. The `apply` command executes it. See [CLI Reference: plan](/docs/reference/cli) for the display format.
+
+---
+
+## Managed vs Unmanaged Resources
+
+The diff engine only considers resources for deletion if they appear in `managedPaths` — the set of paths the SDK has previously created. This is a safety boundary: resources that exist on the platform but were never created by the SDK will never be deleted, even if they don't appear in your code.
+
+This lets you safely run the SDK in an account that also has manually-created campaigns. The SDK owns only what it created.
+
+On the first `apply` in a new project, `managedPaths` is empty, so no deletes will be scheduled — only creates. After that first apply, the cache populates, and subsequent runs will schedule deletes for any resources that were removed from code.
+
+---
+
+## Further Reading
+
+- [Resource Identity](/docs/concepts/resource-identity) — how paths enable RSA stable identity and managed resource tracking
+- [How It Works](/docs/concepts/how-it-works) — the full pipeline context
+- [CLI Reference](/docs/reference/cli) — the `plan` command output format

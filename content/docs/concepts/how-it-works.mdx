@@ -1,0 +1,151 @@
+---
+title: How It Works
+description: The pipeline from campaign definitions to platform mutations
+---
+
+`@upspawn/ads` models ad campaign management the same way infrastructure-as-code tools model servers: you declare the desired state in code, and the SDK figures out what needs to change to make reality match that declaration. No more clicking through dashboards, no more drift between what you think is running and what is actually running.
+
+## The Pipeline
+
+Every CLI command — `plan`, `apply`, `pull` — runs the same four-stage pipeline:
+
+```
+  Campaign files         Flatten          Diff            Apply
+  ─────────────         ───────          ────            ─────
+  campaigns/            Resource[]       Changeset       Mutations
+  search.ts    ──────►  flat list  ────► creates   ────► Google gRPC
+  meta.ts               (paths,          updates         Meta Graph API
+  retargeting.ts        properties)      deletes
+                          ▲                ▲
+                          │                │
+                     Discovery        Fetch + Cache
+                     (scan files)     (live state)
+```
+
+1. **Discovery** — The CLI scans `campaigns/**/*.ts`, dynamically imports each file, and collects all exports that have `provider` and `kind` fields. No configuration needed; the presence of those two fields is the contract.
+
+2. **Flatten** — Each campaign tree is recursively walked and converted into a flat list of `Resource` objects. A campaign with three ad groups and ten keywords becomes a list of ~14 resources, each with a stable `path` and a `properties` bag.
+
+3. **Diff** — The flat desired `Resource[]` is compared against the flat actual `Resource[]` fetched from the platform API. The diff engine produces a `Changeset` — a description of what needs to be created, updated, or deleted. No API calls happen here; this is a pure function.
+
+4. **Apply** — The `Changeset` is executed: creates go parent-first (campaign → adGroup → keyword → ad), deletes go child-first. The cache is updated after each successful mutation to keep path → platformId mappings current.
+
+`plan` runs steps 1–3 and displays the changeset. `apply` runs all four.
+
+---
+
+## Immutable Builders
+
+Campaign objects are built with a chained builder API:
+
+```ts
+export const searchCampaign = google.search('PDF Tools — Search')
+  .budget(daily(20, eur()))
+  .bidding(maximizeConversions())
+  .targeting(geo(['DE', 'AT', 'CH']), languages(['de']))
+  .group('Core Keywords', g => g
+    .keywords(exact('pdf to word'), exact('pdf converter'))
+    .ad(rsa(
+      headlines('Convert PDF to Word', 'Fast & Accurate', 'Try Free'),
+      descriptions('Professional PDF conversion.', 'No installation needed.'),
+      url('https://example.com')
+    ))
+  )
+```
+
+Each builder call — `.budget()`, `.targeting()`, `.group()` — returns a **new frozen object** rather than mutating the existing one. This is intentional: it makes builders safe to share as templates.
+
+```ts
+// Base builder shared across campaigns
+const baseSearch = google.search('')
+  .targeting(geo(['DE', 'AT', 'CH']), languages(['de']))
+  .bidding(maximizeConversions())
+
+// Each campaign adds its own specifics without affecting the base
+export const brandCampaign = baseSearch
+  .name('Brand — Search')
+  .budget(daily(10, eur()))
+  .group('Brand Keywords', g => g.keywords(exact('pdf tools')).ad(/* ... */))
+
+export const genericCampaign = baseSearch
+  .name('Generic — Search')
+  .budget(daily(30, eur()))
+  .group('Generic Keywords', g => g.keywords(broad('pdf converter')).ad(/* ... */))
+```
+
+Because each `.name()` / `.budget()` call produces a new object, `baseSearch` is never mutated. The factory pattern works safely.
+
+---
+
+## Branded Types
+
+`Headline`, `Description`, and `CalloutText` are TypeScript branded types — ordinary strings that carry a phantom type tag:
+
+```ts
+type Headline = string & { readonly __brand: 'Headline' }
+```
+
+The helper functions enforce constraints **at construction time**, before anything reaches the API:
+
+```ts
+// This throws immediately — not when you run `apply`
+headlines(
+  'Convert PDF to Word Instantly',  // ✓ 30 chars
+  'This headline is way too long and exceeds the thirty character limit'  // ✗
+)
+// Error: Headline "This headline is way too long..." exceeds 30 characters
+```
+
+The benefit: you find out about invalid copy when you write it, not when Google rejects your API call with an opaque error response. The TypeScript type system prevents you from passing a raw string where a branded `Headline` is expected, so accidental bypass is a compile error.
+
+---
+
+## Convention-Based Discovery
+
+The CLI finds your campaigns without any explicit registration. It scans `campaigns/**/*.ts` (and `generated/**/*.ts` for AI-generated variants), dynamically imports each file, and collects any export that looks like a campaign:
+
+```ts
+// campaigns/search.ts
+
+// This export IS discovered — has provider + kind fields
+export const searchCampaign = google.search('PDF Tools — Search')
+  .budget(daily(20, eur()))
+  // ...
+
+// This export is NOT a campaign — no provider/kind fields
+export const BUDGET = daily(20, eur())
+```
+
+The check is duck-typed: an object is treated as a campaign if it has both `provider` (string) and `kind` (string) fields. This means you can put helper constants and utility functions in the same file as your campaigns without worrying about them being picked up.
+
+Files are sorted before discovery to ensure a deterministic import order, which matters for slug deduplication when two campaigns share the same name.
+
+---
+
+## The Cache's Role
+
+The first time you run `apply`, the SDK creates entries in a local SQLite cache (`.ads-cache/state.db`) mapping code paths to platform IDs:
+
+```
+path                                   platformId
+─────────────────────────────────────  ──────────────────
+pdf-tools-search                       12345678
+pdf-tools-search/core-keywords         98765432
+pdf-tools-search/core-keywords/kw:exact:pdf to word   11223344
+```
+
+On subsequent runs, this cache serves two purposes:
+
+1. **Managed resource tracking** — Only resources in the cache are candidates for deletion. Resources that exist on the platform but were never created by this SDK (e.g., campaigns created manually in the UI) are left alone.
+
+2. **RSA stable identity** — RSA ad paths include a hash of the ad's content. When you change the copy, the hash changes, and the path changes. The cache lets the diff engine match the new path to the existing platform ad (via the old platformId), producing an `update` instead of a `delete` + `create`.
+
+See [Resource Identity](/docs/concepts/resource-identity) for a deeper look at how paths and platform IDs interact.
+
+---
+
+## Further Reading
+
+- [Resource Identity](/docs/concepts/resource-identity) — how paths are constructed and why they're stable
+- [The Diff Engine](/docs/concepts/diff-engine) — semantic comparison and zero-drift round-trips
+- [Getting Started](/docs/getting-started) — scaffold your first project

@@ -1,0 +1,141 @@
+---
+title: Resource Identity
+description: How the SDK tracks resources across code changes and platform state
+---
+
+Every platform API identifies resources by numeric or string IDs assigned at creation time. Google calls a campaign `12345678`. Meta calls an ad set `987654321098765`. These IDs are platform-generated, opaque, and unstable — if you delete and recreate a resource, it gets a new ID.
+
+The SDK takes a different approach: it identifies resources by **path** — a stable, human-readable string derived from your code structure. The platform ID is treated as an implementation detail, stored in a local cache and never exposed in your campaign files.
+
+---
+
+## Resource Paths
+
+Paths are constructed by slugifying the names in your campaign tree, then joining them with `/`:
+
+```
+campaign name       →  campaign-name
+  ad group name     →  campaign-name/ad-group-name
+    keyword         →  campaign-name/ad-group-name/kw:exact:pdf to word
+    RSA ad          →  campaign-name/ad-group-name/ad:a3f9c12d8b4e
+```
+
+Slugification is simple: lowercase, replace non-alphanumeric characters with hyphens, strip leading/trailing hyphens, collapse runs.
+
+```
+"PDF Tools — Search (DE)"  →  "pdf-tools-search-de"
+"Core Keywords [Exact]"    →  "core-keywords-exact"
+```
+
+Keywords encode their match type and text:
+
+```
+exact('pdf to word')     →  kw:exact:pdf to word
+phrase('pdf converter')  →  kw:phrase:pdf converter
+broad('pdf tools')       →  kw:broad:pdf tools
+```
+
+This encoding makes the path self-describing: you can read a path and understand exactly what it refers to.
+
+---
+
+## Why Paths Instead of Platform IDs
+
+The alternative — storing platform IDs in your campaign files — has a fatal flaw: IDs change when resources are recreated. If you delete and recreate a campaign in the UI, or if the SDK needs to recreate a resource due to a non-updatable field change, the ID changes. Any file-based reference would break.
+
+Paths are code-first. They derive from the names you chose, not from what the platform assigned. They survive:
+
+- **Deleting and recreating a resource** — the path stays the same; only the cached platformId is updated
+- **Moving between branches** — the path is deterministic from the code, not from when it was applied
+- **Multiple environments** — the same path can map to different platformIds in staging vs production (different cache files)
+
+The path is the contract between your code and the SDK. The platform ID is an implementation detail that the cache manages on your behalf.
+
+---
+
+## RSA Content Hashing
+
+Responsive Search Ads present a special challenge: they have no user-assigned name. How do you give an RSA a stable identity when the only things that distinguish it from another RSA in the same ad group are its headlines, descriptions, and URL?
+
+The SDK uses a **content hash** as the RSA's identity. The hash is computed from the sorted headlines, sorted descriptions, and final URL:
+
+```ts
+const hash = stableHash(JSON.stringify({
+  headlines: [...headlines].sort(),
+  descriptions: [...descriptions].sort(),
+  finalUrl,
+}))
+
+// Ad path: campaign-name/group-name/ad:a3f9c12d8b4e
+```
+
+Sorting before hashing means the hash is independent of the order you wrote the headlines — `['A', 'B', 'C']` and `['C', 'A', 'B']` produce the same hash. This prevents spurious path changes just from reordering your copy.
+
+### What happens when you change ad copy
+
+When you modify a headline, the hash changes, so the path changes. Naively, this would look like a delete (old path gone) + create (new path appeared). The diff engine avoids this by using the cache:
+
+1. The old path (`ad:a3f9c12d8b4e`) is in the cache, mapped to platform ID `9876543210`
+2. The new path (`ad:f1c2d3e4a5b6`) appears in desired — no match in actual
+3. The diff engine checks: does any actual resource's platform ID match a cached path that's no longer in desired? Yes — platform ID `9876543210` was at the old path, and the old path is gone from desired
+4. Result: `update` — the existing ad is updated in place, preserving its platform ID and history
+
+This means changing ad copy is always an **update**, not a delete + recreate. You don't lose impression history or quality score.
+
+---
+
+## The Cache as Bridge
+
+The cache (`resource_map` table in `.ads-cache/state.db`) is the bridge between code paths and platform IDs:
+
+| project | path | platformId | kind | lastSeen |
+|---------|------|------------|------|----------|
+| my-project | pdf-tools-search | 12345678 | campaign | 2024-01-15T... |
+| my-project | pdf-tools-search/core-keywords | 98765432 | adGroup | 2024-01-15T... |
+| my-project | pdf-tools-search/core-keywords/kw:exact:pdf to word | 11223344 | keyword | 2024-01-15T... |
+
+The cache is populated on the first `apply` and updated on every subsequent `apply`. It serves two purposes:
+
+**Managed path tracking** — The cache defines the boundary of what the SDK owns. Resources on the platform that are not in the cache are considered "unmanaged" and will never be deleted by the SDK, even if they don't appear in your code. This lets you coexist with manually-created campaigns in the same account.
+
+**Stable identity resolution** — Used by the diff engine to match new paths to existing platform resources (the RSA case above, and also when you rename a campaign in code).
+
+---
+
+## Common Scenarios
+
+### Renaming a campaign
+
+You rename `"PDF Tools — Search"` to `"PDF Converter — Search"` in code.
+
+- Old path: `pdf-tools-search`
+- New path: `pdf-converter-search`
+- Old path is in the cache (managed), new path is not in actual
+
+Result: **delete** `pdf-tools-search` + **create** `pdf-converter-search`. The platform gets a new campaign. If you want to preserve the old campaign's history, rename it in the SDK and the UI simultaneously — matching the slug by updating the name to produce the same slug.
+
+### Changing ad copy
+
+You update a headline in an RSA.
+
+- Old path: `campaign/group/ad:a3f9c12d8b4e` (in cache, platformId `9876`)
+- New path: `campaign/group/ad:f1c2d3e4a5b6` (in desired, not in actual)
+- Cache lookup: platformId `9876` was at the old path, old path is gone from desired
+
+Result: **update** — the existing ad is modified in place. No history loss.
+
+### Deleting an ad group
+
+You remove a `.group()` call from your campaign definition.
+
+- Group path `campaign/old-group` is in the cache (managed)
+- Group path is not in desired
+
+Result: **delete** `campaign/old-group` and all its children (keywords, ads). Children are deleted first to avoid orphaned resources.
+
+---
+
+## Further Reading
+
+- [How It Works](/docs/concepts/how-it-works) — the full pipeline from code to mutations
+- [The Diff Engine](/docs/concepts/diff-engine) — how the diff engine uses paths to compute changes
